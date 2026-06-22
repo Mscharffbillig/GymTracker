@@ -5,6 +5,9 @@ import { useAppData } from '../context/AppDataContext';
 import { fontStyles, radius, spacing, ThemeColors } from '../theme';
 import { ThemeMode, WeightUnit } from '../types';
 
+const FRESH_OPTIONS = [1, 2, 3, 5];
+const RECENT_OPTIONS = [4, 6, 8, 10, 14];
+
 export function SettingsScreen() {
   const { settings, updateSettings, colors } = useAppData();
   const styles = createStyles(colors);
@@ -15,6 +18,14 @@ export function SettingsScreen() {
 
   function setTheme(theme: ThemeMode) {
     updateSettings({ ...settings, theme });
+  }
+
+  function setFreshDays(freshDays: number) {
+    updateSettings({ ...settings, freshDays });
+  }
+
+  function setRecentDays(recentDays: number) {
+    updateSettings({ ...settings, recentDays });
   }
 
   return (
@@ -53,6 +64,48 @@ export function SettingsScreen() {
         ))}
       </View>
 
+      <Text style={[fontStyles.label, styles.sectionSpacing, { color: colors.textMuted }]}>
+        MUSCLE MAP — FRESH WITHIN (DAYS)
+      </Text>
+      <View style={styles.chipRow}>
+        {FRESH_OPTIONS.map((days) => (
+          <Pressable
+            key={days}
+            onPress={() => setFreshDays(days)}
+            style={[styles.chip, settings.freshDays === days && styles.optionActive]}
+          >
+            <Text
+              style={[styles.optionLabel, settings.freshDays === days && styles.optionLabelActive]}
+            >
+              {days}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <Text style={[fontStyles.label, styles.sectionSpacing, { color: colors.textMuted }]}>
+        MUSCLE MAP — NEEDS WORK AFTER (DAYS)
+      </Text>
+      <View style={styles.chipRow}>
+        {RECENT_OPTIONS.map((days) => (
+          <Pressable
+            key={days}
+            onPress={() => setRecentDays(days)}
+            style={[styles.chip, settings.recentDays === days && styles.optionActive]}
+          >
+            <Text
+              style={[styles.optionLabel, settings.recentDays === days && styles.optionLabelActive]}
+            >
+              {days}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={[fontStyles.bodyMuted, styles.helperText, { color: colors.textMuted }]}>
+        A muscle group shows fresh for the first window, fades to "recent" until the second
+        number, then reads as needing work.
+      </Text>
+
       <Text style={[fontStyles.bodyMuted, styles.footnote, { color: colors.textMuted }]}>
         All workout data stays on this device. There is no account, sync, or internet
         connection — uninstalling the app deletes your data.
@@ -74,6 +127,22 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       gap: spacing.sm,
       marginTop: spacing.sm,
+    },
+    chipRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    chip: {
+      minWidth: 52,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: radius.md,
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
     },
     sectionSpacing: {
       marginTop: spacing.xl,
@@ -97,6 +166,10 @@ function createStyles(colors: ThemeColors) {
     },
     optionLabelActive: {
       color: '#FFFFFF',
+    },
+    helperText: {
+      marginTop: spacing.sm,
+      lineHeight: 18,
     },
     footnote: {
       marginTop: spacing.xl,

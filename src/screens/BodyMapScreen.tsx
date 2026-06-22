@@ -5,7 +5,14 @@ import { ScreenContainer } from '../components/ScreenContainer';
 import { Button } from '../components/Button';
 import { useAppData } from '../context/AppDataContext';
 import { getAllMuscleGroupStatuses } from '../data/muscleMap';
-import { buildHighlighterData, getSlugToGroups, SLUG_LABELS } from '../data/bodySlugMap';
+import {
+  BodyMapMode,
+  buildHighlighterData,
+  getSlugToGroups,
+  LEVEL_COLORS,
+  PROJECTED_COLOR,
+  SLUG_LABELS,
+} from '../data/bodySlugMap';
 import { MUSCLE_GROUP_LABELS } from '../data/exerciseCatalog';
 import { fontStyles, radius, spacing, ThemeColors } from '../theme';
 
@@ -18,45 +25,39 @@ function statusLine(daysAgo: number | null): string {
   return `Trained ${daysAgo} days ago`;
 }
 
-const LEGEND: Array<{ label: string; key: 'fresh' | 'recent' | 'stale' | 'none' }> = [
-  { label: 'Fresh (0–2d)', key: 'fresh' },
-  { label: 'Recent (3–6d)', key: 'recent' },
-  { label: 'Needs work (7d+)', key: 'stale' },
-  { label: 'Not in program', key: 'none' },
-];
-
 export function BodyMapScreen() {
   const { logs, exercises, days, settings, colors } = useAppData();
   const styles = createStyles(colors);
   const [view, setView] = useState<BodyView>('front');
+  const [mode, setMode] = useState<BodyMapMode>('completed');
   const [selectedSlug, setSelectedSlug] = useState<Slug | null>(null);
 
   const statuses = useMemo(
-    () => getAllMuscleGroupStatuses(logs, exercises, days, settings.unit),
-    [logs, exercises, days, settings.unit]
+    () => getAllMuscleGroupStatuses(logs, exercises, days, settings.unit, settings.freshDays, settings.recentDays),
+    [logs, exercises, days, settings.unit, settings.freshDays, settings.recentDays]
   );
 
   const slugToGroups = useMemo(() => getSlugToGroups(), []);
 
-  const highlighterData = useMemo(
-    () => buildHighlighterData(statuses, colors),
-    [statuses, colors]
-  );
+  const highlighterData = useMemo(() => buildHighlighterData(statuses, mode), [statuses, mode]);
 
   const selectedGroups = selectedSlug ? slugToGroups[selectedSlug] ?? [] : [];
 
-  function legendColor(key: 'fresh' | 'recent' | 'stale' | 'none') {
-    switch (key) {
-      case 'fresh':
-        return colors.primary;
-      case 'recent':
-        return colors.primary + 'AA';
-      case 'stale':
-        return colors.textMuted;
-      default:
-        return colors.surfaceAlt;
-    }
-  }
+  const legend =
+    mode === 'completed'
+      ? [
+          { label: `Fresh (0–${settings.freshDays}d)`, color: LEVEL_COLORS.fresh! },
+          {
+            label: `Recent (${settings.freshDays + 1}–${settings.recentDays}d)`,
+            color: LEVEL_COLORS.recent!,
+          },
+          { label: `Needs work (${settings.recentDays + 1}d+)`, color: LEVEL_COLORS.stale! },
+          { label: 'Not in program', color: colors.surfaceAlt },
+        ]
+      : [
+          { label: 'Covered by your program', color: PROJECTED_COLOR },
+          { label: "Won't be hit", color: colors.surfaceAlt },
+        ];
 
   function handleBodyPartPress(part: ExtendedBodyPart) {
     if (part.slug) setSelectedSlug(part.slug);
@@ -80,6 +81,20 @@ export function BodyMapScreen() {
         ))}
       </View>
 
+      <View style={styles.toggleRow}>
+        {(['completed', 'projected'] as BodyMapMode[]).map((m) => (
+          <Pressable
+            key={m}
+            onPress={() => setMode(m)}
+            style={[styles.toggleOption, mode === m && styles.toggleOptionActive]}
+          >
+            <Text style={[styles.toggleLabel, mode === m && styles.toggleLabelActive]}>
+              {m === 'completed' ? 'Completed' : 'Projected'}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Body
           data={highlighterData}
@@ -91,9 +106,9 @@ export function BodyMapScreen() {
         />
 
         <View style={styles.legend}>
-          {LEGEND.map((item) => (
-            <View key={item.key} style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: legendColor(item.key) }]} />
+          {legend.map((item) => (
+            <View key={item.label} style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: item.color }]} />
               <Text style={[fontStyles.bodyMuted, { color: colors.textMuted }]}>{item.label}</Text>
             </View>
           ))}

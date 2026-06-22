@@ -72,4 +72,6 @@ export type ThemeMode = 'light' | 'dark';
 export interface Settings {
   unit: WeightUnit;
   theme: ThemeMode;
+  freshDays: number;
+  recentDays: number;
 }

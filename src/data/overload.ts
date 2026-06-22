@@ -3,14 +3,26 @@ import { Exercise, ExerciseLog, WeightUnit } from '../types';
 
 export interface ProgressSuggestion {
   weight: number | null;
+  reps: number | null;
   durationSeconds: number | null;
   message: string;
 }
 
-function weightIncrementFor(exercise: Exercise, unit: WeightUnit): number {
+function plateSize(unit: WeightUnit): number {
+  return unit === 'kg' ? 2.5 : 5;
+}
+
+function roundToIncrement(value: number, increment: number): number {
+  return Math.max(increment, Math.round(value / increment) * increment);
+}
+
+// Percentage of current working weight, rounded to a real plate increment,
+// rather than a flat amount that's trivial for heavy lifts and too aggressive
+// for light ones.
+function weightIncrementFor(exercise: Exercise, unit: WeightUnit, topWeight: number): number {
   const isLowerBody = exercise.category === 'legs';
-  if (unit === 'kg') return isLowerBody ? 5 : 2.5;
-  return isLowerBody ? 10 : 5;
+  const percent = isLowerBody ? 0.05 : 0.025;
+  return roundToIncrement(topWeight * percent, plateSize(unit));
 }
 
 function durationIncrementFor(durationSeconds: number): number {
@@ -28,6 +40,7 @@ function mostRecentLog(exerciseId: string, logs: ExerciseLog[]): ExerciseLog | n
 
 const NO_HISTORY: ProgressSuggestion = {
   weight: null,
+  reps: null,
   durationSeconds: null,
   message: 'No history yet — log a starting effort.',
 };
@@ -45,13 +58,15 @@ export function getProgressSuggestion(
     if (validSets.length === 0) return NO_HISTORY;
 
     const topDuration = Math.max(...validSets.map((s) => s.durationSeconds));
-    const allMetTarget = validSets.every((s) => s.durationSeconds >= last.targetDurationSeconds);
+    const finalSet = validSets[validSets.length - 1];
+    const finalSetMet = finalSet.durationSeconds >= last.targetDurationSeconds;
     const increment = durationIncrementFor(topDuration);
 
-    if (allMetTarget) {
+    if (finalSetMet) {
       const suggested = topDuration + increment;
       return {
         weight: null,
+        reps: null,
         durationSeconds: suggested,
         message: `Held the full time last time — try ${formatDuration(suggested)} (+${formatDuration(increment)}).`,
       };
@@ -59,8 +74,9 @@ export function getProgressSuggestion(
 
     return {
       weight: null,
+      reps: null,
       durationSeconds: topDuration,
-      message: `Came up short last time — repeat ${formatDuration(topDuration)} and aim for ${formatDuration(last.targetDurationSeconds)}.`,
+      message: `Came up short last time (${formatDuration(finalSet.durationSeconds)}/${formatDuration(last.targetDurationSeconds)}) — repeat ${formatDuration(topDuration)}.`,
     };
   }
 
@@ -68,21 +84,45 @@ export function getProgressSuggestion(
   if (validSets.length === 0) return NO_HISTORY;
 
   const topWeight = Math.max(...validSets.map((s) => s.weight));
-  const allMetTarget = validSets.every((s) => s.reps >= last.targetReps);
-  const increment = weightIncrementFor(exercise, unit);
+  const finalSet = validSets[validSets.length - 1];
+  const finalSetMet = finalSet.reps >= last.targetReps;
 
-  if (allMetTarget) {
-    const suggested = topWeight + increment;
+  if (!finalSetMet) {
     return {
-      weight: suggested,
+      weight: topWeight,
+      reps: null,
       durationSeconds: null,
-      message: `Hit all reps last time — try ${suggested} ${unit} (+${increment}).`,
+      message: `Your last set came up short (${finalSet.reps}/${last.targetReps} reps) — repeat ${topWeight}${unit} and aim for ${last.targetReps} reps across the board.`,
     };
   }
 
+  const overshoot = finalSet.reps - last.targetReps;
+
+  if (topWeight <= 0) {
+    // Bodyweight exercise — progress via reps instead of an external load.
+    const repIncrement = overshoot >= 3 ? 3 : 1;
+    const suggestedReps = last.targetReps + repIncrement;
+    return {
+      weight: null,
+      reps: suggestedReps,
+      durationSeconds: null,
+      message: `Hit all reps last time — try ${suggestedReps} reps (+${repIncrement}).`,
+    };
+  }
+
+  let increment = weightIncrementFor(exercise, unit, topWeight);
+  if (overshoot >= 3) {
+    increment = roundToIncrement(increment * 1.5, plateSize(unit));
+  }
+  const suggested = topWeight + increment;
+
   return {
-    weight: topWeight,
+    weight: suggested,
+    reps: null,
     durationSeconds: null,
-    message: `Missed target reps last time — repeat ${topWeight} ${unit} and aim for ${last.targetReps} reps.`,
+    message:
+      overshoot >= 3
+        ? `Crushed it last time (+${overshoot} reps on your last set) — try ${suggested}${unit} (+${increment}).`
+        : `Hit all reps last time — try ${suggested}${unit} (+${increment}).`,
   };
 }

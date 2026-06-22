@@ -24,6 +24,7 @@ export function DayDetailScreen({ route, navigation }: Props) {
     deleteDay,
     updateDayExercise,
     removeExerciseFromDay,
+    moveDayExercise,
     getExerciseById,
     colors,
   } = useAppData();
@@ -52,7 +53,7 @@ export function DayDetailScreen({ route, navigation }: Props) {
     );
   }
 
-  function renderItem({ item }: { item: DayExercise }) {
+  function renderItem({ item, index }: { item: DayExercise; index: number }) {
     const exercise = getExerciseById(item.exerciseId);
     if (!exercise) return null;
     const targetLabel =
@@ -67,13 +68,39 @@ export function DayDetailScreen({ route, navigation }: Props) {
             {CATEGORY_LABELS[exercise.category]} · {targetLabel}
           </Text>
         </View>
-        <Pressable
-          onPress={() => removeExerciseFromDay(dayId, item.id)}
-          style={styles.iconBtn}
-          hitSlop={8}
-        >
-          <Ionicons name="trash-outline" size={20} color={colors.danger} />
-        </Pressable>
+        <View style={styles.rowActions}>
+          <Pressable
+            disabled={index === 0}
+            onPress={() => moveDayExercise(dayId, item.id, 'up')}
+            style={styles.iconBtn}
+            hitSlop={8}
+          >
+            <Ionicons
+              name="chevron-up"
+              size={20}
+              color={index === 0 ? colors.border : colors.textMuted}
+            />
+          </Pressable>
+          <Pressable
+            disabled={index === day!.exercises.length - 1}
+            onPress={() => moveDayExercise(dayId, item.id, 'down')}
+            style={styles.iconBtn}
+            hitSlop={8}
+          >
+            <Ionicons
+              name="chevron-down"
+              size={20}
+              color={index === day!.exercises.length - 1 ? colors.border : colors.textMuted}
+            />
+          </Pressable>
+          <Pressable
+            onPress={() => removeExerciseFromDay(dayId, item.id)}
+            style={styles.iconBtn}
+            hitSlop={8}
+          >
+            <Ionicons name="trash-outline" size={20} color={colors.danger} />
+          </Pressable>
+        </View>
       </Pressable>
     );
   }
@@ -161,6 +188,10 @@ function createStyles(colors: ThemeColors) {
     rowMain: {
       flex: 1,
       gap: spacing.xs,
+    },
+    rowActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
     },
     iconBtn: {
       padding: spacing.xs,

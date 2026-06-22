@@ -1,5 +1,6 @@
 import React from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { EmptyState } from '../components/EmptyState';
 import { WeightChart } from '../components/WeightChart';
@@ -15,7 +16,7 @@ interface Props {
 
 export function ExerciseHistoryScreen({ route, navigation }: Props) {
   const { exerciseId } = route.params;
-  const { getExerciseById, getLogsForExercise, settings, colors } = useAppData();
+  const { getExerciseById, getLogsForExercise, settings, colors, deleteLog } = useAppData();
   const styles = createStyles(colors);
   const exercise = getExerciseById(exerciseId);
   const exerciseLogs = getLogsForExercise(exerciseId);
@@ -40,6 +41,13 @@ export function ExerciseHistoryScreen({ route, navigation }: Props) {
     })
     .filter((point) => point.value > 0);
 
+  function confirmDelete(log: ExerciseLog) {
+    Alert.alert('Delete entry?', 'This removes this logged session permanently.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => deleteLog(log.id) },
+    ]);
+  }
+
   function renderItem({ item }: { item: ExerciseLog }) {
     const date = new Date(item.date);
     const dateLabel = date.toLocaleDateString(undefined, {
@@ -59,10 +67,15 @@ export function ExerciseHistoryScreen({ route, navigation }: Props) {
 
     return (
       <View style={styles.row}>
-        <Text style={[fontStyles.label, { color: colors.textMuted }]}>{dateLabel}</Text>
-        <Text style={[fontStyles.body, { color: colors.text }]}>
-          {setsSummary || 'No sets recorded'}
-        </Text>
+        <View style={styles.rowMain}>
+          <Text style={[fontStyles.label, { color: colors.textMuted }]}>{dateLabel}</Text>
+          <Text style={[fontStyles.body, { color: colors.text }]}>
+            {setsSummary || 'No sets recorded'}
+          </Text>
+        </View>
+        <Pressable onPress={() => confirmDelete(item)} style={styles.deleteBtn} hitSlop={8}>
+          <Ionicons name="trash-outline" size={18} color={colors.danger} />
+        </Pressable>
       </View>
     );
   }
@@ -107,9 +120,17 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.surface,
       borderRadius: radius.md,
       padding: spacing.md,
-      gap: spacing.xs,
+      flexDirection: 'row',
+      alignItems: 'center',
       borderWidth: 1,
       borderColor: colors.border,
+    },
+    rowMain: {
+      flex: 1,
+      gap: spacing.xs,
+    },
+    deleteBtn: {
+      padding: spacing.xs,
     },
   });
 }

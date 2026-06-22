@@ -8,7 +8,7 @@ const KEYS = {
   settings: '@gymtracker/settings',
 };
 
-const DEFAULT_SETTINGS: Settings = { unit: 'lbs', theme: 'dark' };
+const DEFAULT_SETTINGS: Settings = { unit: 'lbs', theme: 'dark', freshDays: 2, recentDays: 6 };
 
 async function readJson<T>(key: string, fallback: T): Promise<T> {
   const raw = await AsyncStorage.getItem(key);

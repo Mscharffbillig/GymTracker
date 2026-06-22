@@ -36,7 +36,9 @@ function getMuscleGroupStatus(
   logs: ExerciseLog[],
   exercises: Exercise[],
   days: Day[],
-  unit: WeightUnit
+  unit: WeightUnit,
+  freshDays: number,
+  recentDays: number
 ): MuscleGroupStatus {
   const groupExerciseIds = new Set(
     exercises.filter((e) => e.muscleGroup === muscleGroup).map((e) => e.id)
@@ -68,7 +70,8 @@ function getMuscleGroupStatus(
 
   const mostRecent = groupLogs[groupLogs.length - 1];
   const daysAgo = Math.floor((Date.now() - new Date(mostRecent.date).getTime()) / 86400000);
-  const highlightLevel: HighlightLevel = daysAgo <= 2 ? 'fresh' : daysAgo <= 6 ? 'recent' : 'stale';
+  const highlightLevel: HighlightLevel =
+    daysAgo <= freshDays ? 'fresh' : daysAgo <= recentDays ? 'recent' : 'stale';
 
   const earliestTop = topWeightOf(groupLogs[0]);
   const latestTop = topWeightOf(mostRecent);
@@ -90,11 +93,21 @@ export function getAllMuscleGroupStatuses(
   logs: ExerciseLog[],
   exercises: Exercise[],
   days: Day[],
-  unit: WeightUnit
+  unit: WeightUnit,
+  freshDays: number,
+  recentDays: number
 ): Record<MuscleGroup, MuscleGroupStatus> {
   const result = {} as Record<MuscleGroup, MuscleGroupStatus>;
   for (const muscleGroup of TRACKED_MUSCLE_GROUPS) {
-    result[muscleGroup] = getMuscleGroupStatus(muscleGroup, logs, exercises, days, unit);
+    result[muscleGroup] = getMuscleGroupStatus(
+      muscleGroup,
+      logs,
+      exercises,
+      days,
+      unit,
+      freshDays,
+      recentDays
+    );
   }
   return result;
 }

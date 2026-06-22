@@ -39,10 +39,10 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
         const exercise = exercises.find((e) => e.id === dayExercise.exerciseId);
         const suggestion = exercise
           ? getProgressSuggestion(exercise, logs, settings.unit)
-          : { weight: null, durationSeconds: null, message: '' };
+          : { weight: null, reps: null, durationSeconds: null, message: '' };
         const isTime = exercise?.trackingType === 'time';
         initial[dayExercise.id] = Array.from({ length: dayExercise.targetSets }, () => ({
-          reps: isTime ? 0 : dayExercise.targetReps,
+          reps: isTime ? 0 : suggestion.reps ?? dayExercise.targetReps,
           weight: isTime ? 0 : suggestion.weight ?? 0,
           durationSeconds: isTime ? suggestion.durationSeconds ?? 0 : 0,
         }));

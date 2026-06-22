@@ -43,6 +43,7 @@ interface AppDataContextValue {
     targetDurationSeconds: number
   ) => void;
   removeExerciseFromDay: (dayId: string, dayExerciseId: string) => void;
+  moveDayExercise: (dayId: string, dayExerciseId: string, direction: 'up' | 'down') => void;
 
   addCustomExercise: (
     name: string,
@@ -57,6 +58,7 @@ interface AppDataContextValue {
     entries: Array<{ exerciseId: string; targetReps: number; targetDurationSeconds: number; sets: SetLog[] }>
   ) => void;
   getLogsForExercise: (exerciseId: string) => ExerciseLog[];
+  deleteLog: (logId: string) => void;
 
   updateSettings: (settings: Settings) => void;
 }
@@ -68,7 +70,12 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [days, setDays] = useState<Day[]>([]);
   const [customExercises, setCustomExercises] = useState<Exercise[]>([]);
   const [logs, setLogs] = useState<ExerciseLog[]>([]);
-  const [settings, setSettings] = useState<Settings>({ unit: 'lbs', theme: 'dark' });
+  const [settings, setSettings] = useState<Settings>({
+    unit: 'lbs',
+    theme: 'dark',
+    freshDays: 2,
+    recentDays: 6,
+  });
   const colors = settings.theme === 'dark' ? darkColors : lightColors;
 
   useEffect(() => {
@@ -186,6 +193,20 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     );
   }
 
+  function moveDayExercise(dayId: string, dayExerciseId: string, direction: 'up' | 'down') {
+    persistDays(
+      days.map((d) => {
+        if (d.id !== dayId) return d;
+        const list = [...d.exercises];
+        const index = list.findIndex((e) => e.id === dayExerciseId);
+        const swapWith = direction === 'up' ? index - 1 : index + 1;
+        if (index === -1 || swapWith < 0 || swapWith >= list.length) return d;
+        [list[index], list[swapWith]] = [list[swapWith], list[index]];
+        return { ...d, exercises: list };
+      })
+    );
+  }
+
   function addCustomExercise(
     name: string,
     category: ExerciseCategory,
@@ -238,6 +259,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }
 
+  function deleteLog(logId: string) {
+    persistLogs(logs.filter((l) => l.id !== logId));
+  }
+
   function updateSettings(next: Settings) {
     setSettings(next);
     storage.saveSettings(next);
@@ -257,10 +282,12 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     addExerciseToDay,
     updateDayExercise,
     removeExerciseFromDay,
+    moveDayExercise,
     addCustomExercise,
     getExerciseById,
     saveWorkoutLog,
     getLogsForExercise,
+    deleteLog,
     updateSettings,
   };
 

@@ -44,6 +44,17 @@ export const SLUG_LABELS: Record<Slug, string> = {
   feet: 'Feet',
 };
 
+// Okabe-Ito colorblind-safe palette: distinguishable by hue+lightness for all
+// common color vision deficiencies, not just by opacity of a single hue.
+export const LEVEL_COLORS: Record<HighlightLevel, string | null> = {
+  fresh: '#0072B2', // strong blue
+  recent: '#56B4E9', // sky blue
+  stale: '#E69F00', // amber
+  none: null,
+};
+
+export const PROJECTED_COLOR = '#9B5DE5'; // violet, distinct from the completed palette
+
 const LEVEL_RANK: Record<HighlightLevel, number> = { none: 0, stale: 1, recent: 2, fresh: 3 };
 
 function bestLevel(a: HighlightLevel, b: HighlightLevel): HighlightLevel {
@@ -63,35 +74,29 @@ export function getSlugToGroups(): Record<string, MuscleGroup[]> {
   return map;
 }
 
-export function colorForLevel(
-  level: HighlightLevel,
-  colors: { primary: string; textMuted: string }
-): string | null {
-  switch (level) {
-    case 'fresh':
-      return colors.primary;
-    case 'recent':
-      return colors.primary + 'AA';
-    case 'stale':
-      return colors.textMuted;
-    default:
-      return null;
-  }
-}
+export type BodyMapMode = 'completed' | 'projected';
 
 export function buildHighlighterData(
   statuses: Record<MuscleGroup, MuscleGroupStatus>,
-  colors: { primary: string; textMuted: string }
-) {
+  mode: BodyMapMode
+): Array<{ slug: Slug; color: string }> {
   const slugToGroups = getSlugToGroups();
   const data: Array<{ slug: Slug; color: string }> = [];
 
   for (const [slug, groups] of Object.entries(slugToGroups)) {
+    if (mode === 'projected') {
+      const covered = groups.some((g) => statuses[g].exerciseNamesInProgram.length > 0);
+      if (covered) {
+        data.push({ slug: slug as Slug, color: PROJECTED_COLOR });
+      }
+      continue;
+    }
+
     const best = groups.reduce(
       (acc, g) => bestLevel(acc, statuses[g].highlightLevel),
       'none' as HighlightLevel
     );
-    const color = colorForLevel(best, colors);
+    const color = LEVEL_COLORS[best];
     if (color) {
       data.push({ slug: slug as Slug, color });
     }
