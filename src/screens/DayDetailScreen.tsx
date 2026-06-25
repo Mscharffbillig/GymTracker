@@ -25,6 +25,7 @@ export function DayDetailScreen({ route, navigation }: Props) {
     updateDayExercise,
     removeExerciseFromDay,
     moveDayExercise,
+    setAlternativeExercise,
     getExerciseById,
     colors,
   } = useAppData();
@@ -56,6 +57,7 @@ export function DayDetailScreen({ route, navigation }: Props) {
   function renderItem({ item, index }: { item: DayExercise; index: number }) {
     const exercise = getExerciseById(item.exerciseId);
     if (!exercise) return null;
+    const altExercise = item.alternativeExerciseId ? getExerciseById(item.alternativeExerciseId) : null;
     const targetLabel =
       exercise.trackingType === 'time'
         ? `${item.targetSets} round${item.targetSets === 1 ? '' : 's'} × ${formatDuration(item.targetDurationSeconds)}`
@@ -67,8 +69,36 @@ export function DayDetailScreen({ route, navigation }: Props) {
           <Text style={[fontStyles.bodyMuted, { color: colors.textMuted }]}>
             {CATEGORY_LABELS[exercise.category]} · {targetLabel}
           </Text>
+          {altExercise ? (
+            <View style={styles.altRow}>
+              <Ionicons name="swap-horizontal-outline" size={13} color={colors.primary} />
+              <Text style={[styles.altLabel, { color: colors.primary }]}>Alt: {altExercise.name}</Text>
+              <Pressable
+                onPress={() => setAlternativeExercise(dayId, item.id, null)}
+                hitSlop={8}
+              >
+                <Ionicons name="close-circle-outline" size={15} color={colors.textMuted} />
+              </Pressable>
+            </View>
+          ) : null}
         </View>
         <View style={styles.rowActions}>
+          <Pressable
+            onPress={() =>
+              navigation.navigate('ExercisePicker', {
+                dayId,
+                onPickAlternative: (exId) => setAlternativeExercise(dayId, item.id, exId),
+              })
+            }
+            style={styles.iconBtn}
+            hitSlop={8}
+          >
+            <Ionicons
+              name="swap-horizontal-outline"
+              size={20}
+              color={altExercise ? colors.primary : colors.textMuted}
+            />
+          </Pressable>
           <Pressable
             disabled={index === 0}
             onPress={() => moveDayExercise(dayId, item.id, 'up')}
@@ -188,6 +218,16 @@ function createStyles(colors: ThemeColors) {
     rowMain: {
       flex: 1,
       gap: spacing.xs,
+    },
+    altRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    altLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      flex: 1,
     },
     rowActions: {
       flexDirection: 'row',

@@ -6,6 +6,7 @@ import { darkColors, lightColors, ThemeColors } from '../theme';
 import {
   Day,
   DayExercise,
+  DraftWorkout,
   Exercise,
   ExerciseCategory,
   ExerciseLog,
@@ -61,6 +62,11 @@ interface AppDataContextValue {
   deleteLog: (logId: string) => void;
 
   updateSettings: (settings: Settings) => void;
+
+  draftWorkout: DraftWorkout | null;
+  saveDraftWorkout: (draft: DraftWorkout) => void;
+  clearDraftWorkout: () => void;
+  setAlternativeExercise: (dayId: string, dayExerciseId: string, altExerciseId: string | null) => void;
 }
 
 const AppDataContext = createContext<AppDataContextValue | undefined>(undefined);
@@ -76,20 +82,23 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     freshDays: 2,
     recentDays: 6,
   });
+  const [draftWorkout, setDraftWorkout] = useState<DraftWorkout | null>(null);
   const colors = settings.theme === 'dark' ? darkColors : lightColors;
 
   useEffect(() => {
     (async () => {
-      const [loadedDays, loadedCustom, loadedLogs, loadedSettings] = await Promise.all([
+      const [loadedDays, loadedCustom, loadedLogs, loadedSettings, loadedDraft] = await Promise.all([
         storage.loadDays(),
         storage.loadCustomExercises(),
         storage.loadLogs(),
         storage.loadSettings(),
+        storage.loadDraftWorkout(),
       ]);
       setDays(loadedDays);
       setCustomExercises(loadedCustom);
       setLogs(loadedLogs);
       setSettings(loadedSettings);
+      setDraftWorkout(loadedDraft);
       setLoading(false);
     })();
   }, []);
@@ -263,6 +272,33 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     persistLogs(logs.filter((l) => l.id !== logId));
   }
 
+  function saveDraftWorkout(draft: DraftWorkout) {
+    setDraftWorkout(draft);
+    storage.saveDraftWorkout(draft);
+  }
+
+  function clearDraftWorkout() {
+    setDraftWorkout(null);
+    storage.clearDraftWorkout();
+  }
+
+  function setAlternativeExercise(dayId: string, dayExerciseId: string, altExerciseId: string | null) {
+    persistDays(
+      days.map((d) =>
+        d.id === dayId
+          ? {
+              ...d,
+              exercises: d.exercises.map((e) =>
+                e.id === dayExerciseId
+                  ? { ...e, alternativeExerciseId: altExerciseId ?? undefined }
+                  : e
+              ),
+            }
+          : d
+      )
+    );
+  }
+
   function updateSettings(next: Settings) {
     setSettings(next);
     storage.saveSettings(next);
@@ -289,6 +325,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     getLogsForExercise,
     deleteLog,
     updateSettings,
+    draftWorkout,
+    saveDraftWorkout,
+    clearDraftWorkout,
+    setAlternativeExercise,
   };
 
   return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;

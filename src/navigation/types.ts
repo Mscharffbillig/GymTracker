@@ -1,7 +1,11 @@
 export type ProgramStackParamList = {
   Days: undefined;
   DayDetail: { dayId: string };
-  ExercisePicker: { dayId: string };
+  ExercisePicker: {
+    dayId: string;
+    onSessionAdd?: (exerciseId: string, sets: number, reps: number, durSecs: number) => void;
+    onPickAlternative?: (exerciseId: string) => void;
+  };
   WorkoutSession: { dayId: string };
   ExerciseHistory: { exerciseId: string };
 };

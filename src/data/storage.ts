@@ -1,11 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Day, Exercise, ExerciseLog, Settings } from '../types';
+import { Day, DraftWorkout, Exercise, ExerciseLog, Settings } from '../types';
 
 const KEYS = {
   days: '@gymtracker/days',
   customExercises: '@gymtracker/customExercises',
   logs: '@gymtracker/logs',
   settings: '@gymtracker/settings',
+  draftWorkout: '@gymtracker/draftWorkout',
 };
 
 const DEFAULT_SETTINGS: Settings = { unit: 'lbs', theme: 'dark', freshDays: 2, recentDays: 6 };
@@ -39,4 +40,8 @@ export const storage = {
     ...(await readJson<Partial<Settings>>(KEYS.settings, {})),
   }),
   saveSettings: (settings: Settings) => writeJson(KEYS.settings, settings),
+
+  loadDraftWorkout: () => readJson<DraftWorkout | null>(KEYS.draftWorkout, null),
+  saveDraftWorkout: (draft: DraftWorkout) => writeJson(KEYS.draftWorkout, draft),
+  clearDraftWorkout: () => AsyncStorage.removeItem(KEYS.draftWorkout),
 };

@@ -19,7 +19,7 @@ import { Exercise, ExerciseCategory, MuscleGroup, TrackingType } from '../types'
 type Props = NativeStackScreenProps<ProgramStackParamList, 'ExercisePicker'>;
 
 export function ExercisePickerScreen({ route, navigation }: Props) {
-  const { dayId } = route.params;
+  const { dayId, onSessionAdd, onPickAlternative } = route.params;
   const { exercises, addCustomExercise, addExerciseToDay, colors } = useAppData();
   const styles = createStyles(colors);
 
@@ -33,6 +33,14 @@ export function ExercisePickerScreen({ route, navigation }: Props) {
     CATEGORY_TO_MUSCLE_GROUPS.chest[0]
   );
   const [customTrackingType, setCustomTrackingType] = useState<TrackingType>('reps');
+
+  React.useLayoutEffect(() => {
+    if (onPickAlternative) {
+      navigation.setOptions({ title: 'Pick Alternative' });
+    } else if (onSessionAdd) {
+      navigation.setOptions({ title: 'Add Exercise' });
+    }
+  }, [navigation, onPickAlternative, onSessionAdd]);
 
   function handleSelectCustomCategory(cat: ExerciseCategory) {
     setCustomCategory(cat);
@@ -48,12 +56,21 @@ export function ExercisePickerScreen({ route, navigation }: Props) {
   }, [exercises, activeCategory, search]);
 
   function handlePick(exercise: Exercise) {
+    if (onPickAlternative) {
+      onPickAlternative(exercise.id);
+      navigation.goBack();
+      return;
+    }
     setSelectedExercise(exercise);
   }
 
   function handleConfirmTarget(sets: number, reps: number, durationSeconds: number) {
     if (selectedExercise) {
-      addExerciseToDay(dayId, selectedExercise.id, sets, reps, durationSeconds);
+      if (onSessionAdd) {
+        onSessionAdd(selectedExercise.id, sets, reps, durationSeconds);
+      } else {
+        addExerciseToDay(dayId, selectedExercise.id, sets, reps, durationSeconds);
+      }
     }
     setSelectedExercise(null);
     navigation.goBack();

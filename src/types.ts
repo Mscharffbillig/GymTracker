@@ -42,6 +42,7 @@ export interface DayExercise {
   targetSets: number;
   targetReps: number;
   targetDurationSeconds: number;
+  alternativeExerciseId?: string;
 }
 
 export interface Day {
@@ -65,6 +66,24 @@ export interface ExerciseLog {
   targetReps: number;
   targetDurationSeconds: number;
   sets: SetLog[];
+}
+
+export interface ExtraSessionExercise {
+  id: string;
+  exerciseId: string;
+  targetSets: number;
+  targetReps: number;
+  targetDurationSeconds: number;
+}
+
+export interface DraftWorkout {
+  dayId: string;
+  startedAt: string;
+  setsByExercise: Record<string, SetLog[]>;
+  skippedExercises: string[];
+  activeExerciseIds: Record<string, string>;
+  extraExercises: ExtraSessionExercise[];
+  extraSets: Record<string, SetLog[]>;
 }
 
 export type ThemeMode = 'light' | 'dark';
