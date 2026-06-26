@@ -14,6 +14,7 @@ export const TRACKED_MUSCLE_GROUPS: MuscleGroup[] = [
   'quads',
   'hamstrings',
   'calves',
+  'hipAdductors',
 ];
 
 export type HighlightLevel = 'fresh' | 'recent' | 'stale' | 'none';
