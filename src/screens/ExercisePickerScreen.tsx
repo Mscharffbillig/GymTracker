@@ -178,6 +178,7 @@ export function ExercisePickerScreen({ route, navigation }: Props) {
         <View style={styles.customOverlay}>
           <Pressable style={styles.customBackdrop} onPress={() => setCustomModalVisible(false)} />
           <View style={styles.customCard}>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <Text style={[fontStyles.heading, { color: colors.text }]}>New Exercise</Text>
             <TextInput
               value={customName}
@@ -262,6 +263,7 @@ export function ExercisePickerScreen({ route, navigation }: Props) {
                 <Text style={styles.customSaveLabel}>Add</Text>
               </Pressable>
             </View>
+            </ScrollView>
           </View>
         </View>
       ) : null}
@@ -371,6 +373,7 @@ function createStyles(colors: ThemeColors) {
     },
     customCard: {
       width: '100%',
+      maxHeight: '85%',
       backgroundColor: colors.surface,
       borderRadius: radius.lg,
       padding: spacing.lg,

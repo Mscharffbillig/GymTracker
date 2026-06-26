@@ -28,6 +28,10 @@ export function SettingsScreen() {
     updateSettings({ ...settings, recentDays });
   }
 
+  function toggleOverload() {
+    updateSettings({ ...settings, overloadEnabled: !settings.overloadEnabled });
+  }
+
   return (
     <ScreenContainer style={styles.container} edges={['top', 'bottom']}>
       <Text style={[fontStyles.title, styles.title, { color: colors.text }]}>Settings</Text>
@@ -104,6 +108,26 @@ export function SettingsScreen() {
       <Text style={[fontStyles.bodyMuted, styles.helperText, { color: colors.textMuted }]}>
         A muscle group shows fresh for the first window, fades to "recent" until the second
         number, then reads as needing work.
+      </Text>
+
+      <Text style={[fontStyles.label, styles.sectionSpacing, { color: colors.textMuted }]}>
+        PROGRESSIVE OVERLOAD
+      </Text>
+      <View style={styles.optionRow}>
+        {([true, false] as boolean[]).map((val) => (
+          <Pressable
+            key={String(val)}
+            onPress={() => updateSettings({ ...settings, overloadEnabled: val })}
+            style={[styles.option, settings.overloadEnabled === val && styles.optionActive]}
+          >
+            <Text style={[styles.optionLabel, settings.overloadEnabled === val && styles.optionLabelActive]}>
+              {val ? 'On' : 'Off'}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={[fontStyles.bodyMuted, styles.helperText, { color: colors.textMuted }]}>
+        When on, each exercise shows a weight or rep suggestion based on your last session.
       </Text>
 
       <Text style={[fontStyles.bodyMuted, styles.footnote, { color: colors.textMuted }]}>

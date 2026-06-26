@@ -25,7 +25,8 @@ export type MuscleGroup =
   | 'glutes'
   | 'quads'
   | 'hamstrings'
-  | 'calves';
+  | 'calves'
+  | 'hipAdductors';
 
 export interface Exercise {
   id: string;
@@ -93,4 +94,5 @@ export interface Settings {
   theme: ThemeMode;
   freshDays: number;
   recentDays: number;
+  overloadEnabled: boolean;
 }

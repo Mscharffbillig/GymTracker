@@ -9,7 +9,7 @@ const KEYS = {
   draftWorkout: '@gymtracker/draftWorkout',
 };
 
-const DEFAULT_SETTINGS: Settings = { unit: 'lbs', theme: 'dark', freshDays: 2, recentDays: 6 };
+const DEFAULT_SETTINGS: Settings = { unit: 'lbs', theme: 'dark', freshDays: 2, recentDays: 6, overloadEnabled: true };
 
 async function readJson<T>(key: string, fallback: T): Promise<T> {
   const raw = await AsyncStorage.getItem(key);

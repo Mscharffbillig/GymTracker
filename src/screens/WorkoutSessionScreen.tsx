@@ -168,7 +168,6 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     setActiveExerciseIds(freshActiveIds);
     setExtraExercises([]);
     setExtraSets({});
-    // Re-arm auto-save for the fresh session
     isDraftCleared.current = false;
   }
 
@@ -184,9 +183,10 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     if (!dayExercise.alternativeExerciseId) return;
     setActiveExerciseIds((prev) => {
       const current = prev[dayExercise.id] ?? dayExercise.exerciseId;
-      const next = current === dayExercise.exerciseId
-        ? dayExercise.alternativeExerciseId!
-        : dayExercise.exerciseId;
+      const next =
+        current === dayExercise.exerciseId
+          ? dayExercise.alternativeExerciseId!
+          : dayExercise.exerciseId;
       return { ...prev, [dayExercise.id]: next };
     });
   }
@@ -234,6 +234,14 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     });
   }
 
+  function removeLastSet(dayExerciseId: string) {
+    setSetsByExercise((prev) => {
+      const current = prev[dayExerciseId] ?? [];
+      if (current.length <= 1) return prev;
+      return { ...prev, [dayExerciseId]: current.slice(0, -1) };
+    });
+  }
+
   function updateExtraSet(
     extraId: string,
     setIndex: number,
@@ -272,6 +280,14 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
       const last = current[current.length - 1];
       const newSet: SetLog = last ? { ...last } : { reps: 0, weight: 0, durationSeconds: 0 };
       return { ...prev, [extraId]: [...current, newSet] };
+    });
+  }
+
+  function removeLastExtraSet(extraId: string) {
+    setExtraSets((prev) => {
+      const current = prev[extraId] ?? [];
+      if (current.length <= 1) return prev;
+      return { ...prev, [extraId]: current.slice(0, -1) };
     });
   }
 
@@ -342,9 +358,11 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     isTime: boolean,
     suggestion: ProgressSuggestion,
     onUpdateSet: (index: number, field: 'reps' | 'weight', value: string) => void,
-    onUpdateDuration: (index: number, part: 'minutes' | 'seconds', value: string) => void
+    onUpdateDuration: (index: number, part: 'minutes' | 'seconds', value: string) => void,
+    onRemoveLast?: () => void
   ) {
     return sets.map((set, index) => {
+      const isLast = index === sets.length - 1;
       if (isTime) {
         const split = splitSeconds(set.durationSeconds);
         return (
@@ -358,7 +376,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
               value={split.minutes === 0 ? '' : String(split.minutes)}
               onChangeText={(v) => onUpdateDuration(index, 'minutes', v)}
               placeholder={
-                suggestion.durationSeconds
+                settings.overloadEnabled && suggestion.durationSeconds
                   ? String(Math.floor(suggestion.durationSeconds / 60))
                   : ''
               }
@@ -370,12 +388,17 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
               value={split.seconds === 0 ? '' : String(split.seconds)}
               onChangeText={(v) => onUpdateDuration(index, 'seconds', v)}
               placeholder={
-                suggestion.durationSeconds
+                settings.overloadEnabled && suggestion.durationSeconds
                   ? String(suggestion.durationSeconds % 60).padStart(2, '0')
                   : ''
               }
               placeholderTextColor={colors.textMuted}
             />
+            {isLast && onRemoveLast && (
+              <Pressable onPress={onRemoveLast} hitSlop={8} style={styles.removeSetBtn}>
+                <Ionicons name="close" size={16} color={colors.textMuted} />
+              </Pressable>
+            )}
           </View>
         );
       }
@@ -396,9 +419,16 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
             keyboardType="decimal-pad"
             value={set.weight === 0 ? '' : String(set.weight)}
             onChangeText={(v) => onUpdateSet(index, 'weight', v)}
-            placeholder={suggestion.weight ? String(suggestion.weight) : ''}
+            placeholder={
+              settings.overloadEnabled && suggestion.weight ? String(suggestion.weight) : ''
+            }
             placeholderTextColor={colors.textMuted}
           />
+          {isLast && onRemoveLast && (
+            <Pressable onPress={onRemoveLast} hitSlop={8} style={styles.removeSetBtn}>
+              <Ionicons name="close" size={16} color={colors.textMuted} />
+            </Pressable>
+          )}
         </View>
       );
     });
@@ -441,6 +471,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     const isSkipped = skippedExercises.has(dayExercise.id);
     const hasAlt = !!dayExercise.alternativeExerciseId;
     const usingAlt = hasAlt && activeExId === dayExercise.alternativeExerciseId;
+    const primaryExercise = getExerciseById(dayExercise.exerciseId);
     const altExercise = hasAlt ? getExerciseById(dayExercise.alternativeExerciseId!) : null;
     const suggestion = getProgressSuggestion(exercise, logs, settings.unit);
     const sets = setsByExercise[dayExercise.id] ?? [];
@@ -450,36 +481,15 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
       <View key={dayExercise.id} style={[styles.card, isSkipped && styles.cardSkipped]}>
         <View style={styles.cardHeader}>
           <View style={{ flex: 1 }}>
-            <View style={styles.nameLine}>
-              <Text style={[fontStyles.heading, { color: colors.text }]}>{exercise.name}</Text>
-              {usingAlt && (
-                <View style={styles.altBadge}>
-                  <Text style={styles.altBadgeText}>ALT</Text>
-                </View>
-              )}
-            </View>
+            <Text style={[fontStyles.heading, { color: colors.text }]}>{exercise.name}</Text>
             <Text style={[fontStyles.bodyMuted, { color: colors.textMuted }]}>
               {CATEGORY_LABELS[exercise.category]} · Target{' '}
               {isTime
                 ? `${dayExercise.targetSets} × ${Math.floor(dayExercise.targetDurationSeconds / 60)}:${String(dayExercise.targetDurationSeconds % 60).padStart(2, '0')}`
                 : `${dayExercise.targetSets} × ${dayExercise.targetReps}`}
             </Text>
-            {hasAlt && altExercise && !usingAlt && (
-              <Text style={[styles.altHint, { color: colors.textMuted }]}>
-                Alt: {altExercise.name}
-              </Text>
-            )}
           </View>
           <View style={styles.cardActions}>
-            {hasAlt && (
-              <Pressable onPress={() => toggleAlternative(dayExercise)} hitSlop={8}>
-                <Ionicons
-                  name="swap-horizontal-outline"
-                  size={20}
-                  color={usingAlt ? colors.primary : colors.textMuted}
-                />
-              </Pressable>
-            )}
             <Pressable
               onPress={() =>
                 navigation.navigate('ExerciseHistory', { exerciseId: exercise.id })
@@ -488,28 +498,51 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
             >
               <Ionicons name="time-outline" size={20} color={colors.textMuted} />
             </Pressable>
-            <Pressable onPress={() => toggleSkip(dayExercise.id)} hitSlop={8}>
-              <Ionicons
-                name={isSkipped ? 'play-circle-outline' : 'ban-outline'}
-                size={20}
-                color={isSkipped ? colors.primary : colors.danger}
-              />
-            </Pressable>
           </View>
         </View>
+
+        {hasAlt && altExercise && primaryExercise && !isSkipped && (
+          <View style={styles.altSegment}>
+            <Pressable
+              style={[styles.altSegBtn, !usingAlt && styles.altSegBtnActive]}
+              onPress={() => usingAlt && toggleAlternative(dayExercise)}
+            >
+              <Text
+                style={[styles.altSegLabel, !usingAlt && styles.altSegLabelActive]}
+                numberOfLines={1}
+              >
+                {primaryExercise.name}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.altSegBtn, usingAlt && styles.altSegBtnActive]}
+              onPress={() => !usingAlt && toggleAlternative(dayExercise)}
+            >
+              <Text
+                style={[styles.altSegLabel, usingAlt && styles.altSegLabelActive]}
+                numberOfLines={1}
+              >
+                {altExercise.name}
+              </Text>
+            </Pressable>
+          </View>
+        )}
 
         {isSkipped ? (
           <Text style={styles.skippedLabel}>Skipped — won't count toward progress this session</Text>
         ) : (
           <>
-            <Text style={styles.suggestion}>{suggestion.message}</Text>
+            {settings.overloadEnabled && suggestion.message ? (
+              <Text style={styles.suggestion}>{suggestion.message}</Text>
+            ) : null}
             {renderSetHeader(isTime)}
             {renderSetRows(
               sets,
               isTime,
               suggestion,
               (index, field, value) => updateSet(dayExercise.id, index, field, value),
-              (index, part, value) => updateDurationPart(dayExercise.id, index, part, value)
+              (index, part, value) => updateDurationPart(dayExercise.id, index, part, value),
+              sets.length > 1 ? () => removeLastSet(dayExercise.id) : undefined
             )}
             <Pressable
               style={styles.addSetBtn}
@@ -520,6 +553,17 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
             </Pressable>
           </>
         )}
+
+        <View style={styles.cardFooter}>
+          <Pressable
+            onPress={() => toggleSkip(dayExercise.id)}
+            style={[styles.skipBtn, isSkipped && styles.skipBtnActive]}
+          >
+            <Text style={[styles.skipBtnLabel, { color: isSkipped ? colors.primary : colors.danger }]}>
+              {isSkipped ? 'Unskip' : 'Skip'}
+            </Text>
+          </Pressable>
+        </View>
       </View>
     );
   }
@@ -555,14 +599,17 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
           </View>
         </View>
 
-        <Text style={styles.suggestion}>{suggestion.message}</Text>
+        {settings.overloadEnabled && suggestion.message ? (
+          <Text style={styles.suggestion}>{suggestion.message}</Text>
+        ) : null}
         {renderSetHeader(isTime)}
         {renderSetRows(
           sets,
           isTime,
           suggestion,
           (index, field, value) => updateExtraSet(ee.id, index, field, value),
-          (index, part, value) => updateExtraDurationPart(ee.id, index, part, value)
+          (index, part, value) => updateExtraDurationPart(ee.id, index, part, value),
+          sets.length > 1 ? () => removeLastExtraSet(ee.id) : undefined
         )}
         <Pressable style={styles.addSetBtn} onPress={() => addExtraSet(ee.id)}>
           <Ionicons name="add" size={16} color={colors.primary} />
@@ -578,8 +625,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     <ScreenContainer style={styles.container}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'android' ? 24 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
           keyboardShouldPersistTaps="handled"
@@ -669,25 +715,50 @@ function createStyles(colors: ThemeColors) {
       alignItems: 'center',
       gap: spacing.sm,
     },
-    nameLine: {
+    cardFooter: {
       flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
+      justifyContent: 'flex-end',
+      marginTop: spacing.sm,
     },
-    altBadge: {
-      backgroundColor: colors.primary,
+    skipBtn: {
+      paddingVertical: spacing.xs,
+      paddingHorizontal: spacing.md,
       borderRadius: radius.sm,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
+      borderWidth: 1,
+      borderColor: colors.danger,
     },
-    altBadgeText: {
-      color: '#FFFFFF',
-      fontSize: 10,
-      fontWeight: '700',
+    skipBtnActive: {
+      borderColor: colors.primary,
     },
-    altHint: {
+    skipBtnLabel: {
       fontSize: 12,
-      marginTop: 1,
+      fontWeight: '600',
+    },
+    altSegment: {
+      flexDirection: 'row',
+      marginTop: spacing.sm,
+      gap: 2,
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: radius.sm,
+      padding: 2,
+    },
+    altSegBtn: {
+      flex: 1,
+      paddingVertical: spacing.xs,
+      paddingHorizontal: spacing.sm,
+      borderRadius: radius.sm - 2,
+      alignItems: 'center',
+    },
+    altSegBtnActive: {
+      backgroundColor: colors.primary,
+    },
+    altSegLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+    altSegLabelActive: {
+      color: '#FFFFFF',
     },
     suggestion: {
       marginTop: spacing.sm,
@@ -713,7 +784,7 @@ function createStyles(colors: ThemeColors) {
       gap: spacing.sm,
     },
     setCol: {
-      width: 40,
+      width: 36,
     },
     inputCol: {
       flex: 1,
@@ -728,12 +799,21 @@ function createStyles(colors: ThemeColors) {
       color: colors.text,
       backgroundColor: colors.background,
     },
+    removeSetBtn: {
+      width: 24,
+      alignItems: 'center',
+    },
     addSetBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
       marginTop: spacing.sm,
       paddingVertical: spacing.xs,
+      paddingHorizontal: spacing.sm,
+      alignSelf: 'flex-start',
+      borderWidth: 1,
+      borderColor: colors.primary,
+      borderRadius: radius.sm,
     },
     addSetLabel: {
       fontSize: 13,
@@ -757,6 +837,7 @@ function createStyles(colors: ThemeColors) {
     },
     footer: {
       padding: spacing.lg,
+      paddingBottom: spacing.md,
       backgroundColor: colors.background,
     },
   });

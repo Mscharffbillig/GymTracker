@@ -81,6 +81,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     theme: 'dark',
     freshDays: 2,
     recentDays: 6,
+    overloadEnabled: true,
   });
   const [draftWorkout, setDraftWorkout] = useState<DraftWorkout | null>(null);
   const colors = settings.theme === 'dark' ? darkColors : lightColors;

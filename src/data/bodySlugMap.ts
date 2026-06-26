@@ -16,6 +16,7 @@ export const MUSCLE_GROUP_TO_SLUGS: Record<MuscleGroup, Slug[]> = {
   quads: ['quadriceps'],
   hamstrings: ['hamstring'],
   calves: ['calves'],
+  hipAdductors: ['adductors'],
 };
 
 export const SLUG_LABELS: Record<Slug, string> = {

@@ -80,6 +80,80 @@ const builtIn: CatalogEntry[] = [
   ['Rowing Machine', 'cardio', null, 'time'],
   ['Stair Climber', 'cardio', null, 'time'],
   ['Elliptical', 'cardio', null, 'time'],
+
+  // Chest additions
+  ['Cable Crossover', 'chest', 'chestUpper'],
+  ['Machine Chest Press', 'chest', 'chestLower'],
+  ['Incline Push-Up', 'chest', 'chestUpper'],
+  ['Landmine Press', 'chest', 'chestUpper'],
+
+  // Back additions
+  ['Straight-Arm Pulldown', 'back', 'lats'],
+  ['Chest-Supported Row', 'back', 'lats'],
+  ['Pendlay Row', 'back', 'lats'],
+  ['Rack Pull', 'back', 'lowerBack'],
+  ['Good Morning', 'back', 'lowerBack'],
+  ['Superman', 'back', 'lowerBack'],
+
+  // Shoulders additions
+  ['Seated Dumbbell Press', 'shoulders', 'delts'],
+  ['Machine Shoulder Press', 'shoulders', 'delts'],
+  ['Dumbbell Shrug', 'shoulders', 'traps'],
+  ['Y-Raise', 'shoulders', 'delts'],
+
+  // Legs additions
+  ['Hack Squat', 'legs', 'quads'],
+  ['Sumo Squat', 'legs', 'hipAdductors'],
+  ['Sumo Deadlift', 'legs', 'hipAdductors'],
+  ['Hip Adductor Machine', 'legs', 'hipAdductors'],
+  ['Step-Up', 'legs', 'quads'],
+  ['Nordic Hamstring Curl', 'legs', 'hamstrings'],
+  ['Single-Leg Romanian Deadlift', 'legs', 'hamstrings'],
+  ['Glute Bridge', 'legs', 'glutes'],
+  ['Donkey Kick', 'legs', 'glutes'],
+  ['Lateral Band Walk', 'legs', 'hipAdductors'],
+  ['Cable Hip Adduction', 'legs', 'hipAdductors'],
+  ['Box Jump', 'legs', 'quads'],
+
+  // Arms additions
+  ['EZ Bar Curl', 'arms', 'biceps'],
+  ['Concentration Curl', 'arms', 'biceps'],
+  ['Incline Dumbbell Curl', 'arms', 'biceps'],
+  ['Reverse Curl', 'arms', 'biceps'],
+  ['Tricep Kickback', 'arms', 'triceps'],
+  ['Cable Tricep Extension', 'arms', 'triceps'],
+  ['Diamond Push-Up', 'arms', 'triceps'],
+  ['Wrist Curl', 'arms', 'biceps'],
+
+  // Core additions
+  ['Bicycle Crunch', 'core', 'core'],
+  ['Oblique Crunch', 'core', 'core'],
+  ['Cable Wood Chop', 'core', 'core'],
+  ['Pallof Press', 'core', 'core'],
+  ['Decline Sit-Up', 'core', 'core'],
+  ['L-Sit', 'core', 'core', 'time'],
+  ['Dragon Flag', 'core', 'core'],
+  ['Hanging Knee Raise', 'core', 'core'],
+  ['Side Bend', 'core', 'core'],
+  ['Hollow Body Hold', 'core', 'core', 'time'],
+  ['Dead Bug', 'core', 'core'],
+  ['Bird Dog', 'core', 'core'],
+
+  // Cardio additions
+  ['Treadmill', 'cardio', null, 'time'],
+  ['HIIT', 'cardio', null, 'time'],
+  ['Battle Ropes', 'cardio', null, 'time'],
+  ['Walking', 'cardio', null, 'time'],
+  ['Hiking', 'cardio', null, 'time'],
+  ['Assault Bike', 'cardio', null, 'time'],
+  ['Sprint Intervals', 'cardio', null, 'time'],
+  ['Ski Erg', 'cardio', null, 'time'],
+
+  // Other
+  ["Farmer's Carry", 'other', null],
+  ['Kettlebell Swing', 'other', null],
+  ['Medicine Ball Slam', 'other', 'core'],
+  ['Sled Push', 'other', null],
 ];
 
 export const BUILT_IN_EXERCISES: Exercise[] = builtIn.map(
@@ -129,6 +203,7 @@ export const MUSCLE_GROUP_LABELS: Record<MuscleGroup, string> = {
   quads: 'Quads',
   hamstrings: 'Hamstrings',
   calves: 'Calves',
+  hipAdductors: 'Hip Adductors',
 };
 
 export const CATEGORY_TO_MUSCLE_GROUPS: Record<ExerciseCategory, MuscleGroup[]> = {
@@ -137,7 +212,7 @@ export const CATEGORY_TO_MUSCLE_GROUPS: Record<ExerciseCategory, MuscleGroup[]> 
   shoulders: ['delts', 'traps'],
   arms: ['biceps', 'triceps'],
   core: ['core'],
-  legs: ['quads', 'hamstrings', 'glutes', 'calves'],
+  legs: ['quads', 'hamstrings', 'glutes', 'calves', 'hipAdductors'],
   cardio: [],
   other: [],
 };
