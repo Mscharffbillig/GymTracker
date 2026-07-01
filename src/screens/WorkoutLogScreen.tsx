@@ -92,6 +92,13 @@ export function WorkoutLogScreen({ navigation }: Props) {
                 </Text>
               </Pressable>
               <Pressable
+                onPress={() => navigation.navigate('LogEdit', { logId: entry.id })}
+                style={styles.editBtn}
+                hitSlop={8}
+              >
+                <Ionicons name="create-outline" size={18} color={colors.primary} />
+              </Pressable>
+              <Pressable
                 onPress={() => confirmDelete(entry, exercise?.name ?? 'this exercise')}
                 style={styles.deleteBtn}
                 hitSlop={8}
@@ -160,6 +167,10 @@ function createStyles(colors: ThemeColors) {
     entryRowMain: {
       flex: 1,
       gap: spacing.xs,
+    },
+    editBtn: {
+      padding: spacing.xs,
+      marginRight: spacing.xs,
     },
     deleteBtn: {
       padding: spacing.xs,

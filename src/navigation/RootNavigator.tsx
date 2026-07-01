@@ -16,6 +16,7 @@ import { ExercisePickerScreen } from '../screens/ExercisePickerScreen';
 import { WorkoutSessionScreen } from '../screens/WorkoutSessionScreen';
 import { ExerciseHistoryScreen } from '../screens/ExerciseHistoryScreen';
 import { WorkoutLogScreen } from '../screens/WorkoutLogScreen';
+import { LogEditScreen } from '../screens/LogEditScreen';
 import { BodyMapScreen } from '../screens/BodyMapScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 
@@ -77,6 +78,11 @@ function ProgressStackNavigator() {
         name="ExerciseHistory"
         component={ExerciseHistoryScreen}
         options={{ title: 'History' }}
+      />
+      <ProgressStack.Screen
+        name="LogEdit"
+        component={LogEditScreen}
+        options={{ title: 'Edit Entry' }}
       />
     </ProgressStack.Navigator>
   );

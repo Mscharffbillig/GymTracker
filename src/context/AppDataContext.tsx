@@ -60,6 +60,7 @@ interface AppDataContextValue {
   ) => void;
   getLogsForExercise: (exerciseId: string) => ExerciseLog[];
   deleteLog: (logId: string) => void;
+  updateExerciseLog: (logId: string, sets: SetLog[]) => void;
 
   updateSettings: (settings: Settings) => void;
 
@@ -273,6 +274,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     persistLogs(logs.filter((l) => l.id !== logId));
   }
 
+  function updateExerciseLog(logId: string, sets: SetLog[]) {
+    persistLogs(logs.map((l) => (l.id === logId ? { ...l, sets } : l)));
+  }
+
   function saveDraftWorkout(draft: DraftWorkout) {
     setDraftWorkout(draft);
     storage.saveDraftWorkout(draft);
@@ -325,6 +330,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     saveWorkoutLog,
     getLogsForExercise,
     deleteLog,
+    updateExerciseLog,
     updateSettings,
     draftWorkout,
     saveDraftWorkout,

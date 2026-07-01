@@ -110,6 +110,8 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
   );
 
   const [showResumeBanner, setShowResumeBanner] = useState(hasDraft);
+  const [collapsedCards, setCollapsedCards] = useState<Set<string>>(new Set());
+  const [completedCards, setCompletedCards] = useState<Set<string>>(new Set());
 
   // ── Draft auto-save ──────────────────────────────────────────────────────
 
@@ -175,6 +177,27 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     setSkippedExercises((prev) => {
       const next = new Set(prev);
       next.has(dayExerciseId) ? next.delete(dayExerciseId) : next.add(dayExerciseId);
+      return next;
+    });
+  }
+
+  function toggleCollapse(id: string) {
+    setCollapsedCards((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleComplete(id: string) {
+    setCompletedCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+        setCollapsedCards((cc) => { const n = new Set(cc); n.add(id); return n; });
+      }
       return next;
     });
   }
@@ -326,29 +349,41 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
   }
 
   function handleFinish() {
-    isDraftCleared.current = true;
-    clearDraftWorkout();
+    Alert.alert(
+      'Finish Workout?',
+      'Save your session and return to the program.',
+      [
+        { text: 'Keep Going', style: 'cancel' },
+        {
+          text: 'Finish',
+          onPress: () => {
+            isDraftCleared.current = true;
+            clearDraftWorkout();
 
-    const plannedEntries = day!.exercises
-      .filter((de) => !skippedExercises.has(de.id))
-      .map((de) => ({
-        exerciseId: activeExerciseIds[de.id] ?? de.exerciseId,
-        targetReps: de.targetReps,
-        targetDurationSeconds: de.targetDurationSeconds,
-        sets: setsByExercise[de.id] ?? [],
-      }));
+            const plannedEntries = day!.exercises
+              .filter((de) => !skippedExercises.has(de.id))
+              .map((de) => ({
+                exerciseId: activeExerciseIds[de.id] ?? de.exerciseId,
+                targetReps: de.targetReps,
+                targetDurationSeconds: de.targetDurationSeconds,
+                sets: setsByExercise[de.id] ?? [],
+              }));
 
-    const extraEntries = extraExercises.map((ee) => ({
-      exerciseId: ee.exerciseId,
-      targetReps: ee.targetReps,
-      targetDurationSeconds: ee.targetDurationSeconds,
-      sets: extraSets[ee.id] ?? [],
-    }));
+            const extraEntries = extraExercises.map((ee) => ({
+              exerciseId: ee.exerciseId,
+              targetReps: ee.targetReps,
+              targetDurationSeconds: ee.targetDurationSeconds,
+              sets: extraSets[ee.id] ?? [],
+            }));
 
-    saveWorkoutLog(dayId, [...plannedEntries, ...extraEntries]);
-    Alert.alert('Workout saved', `Nice work — ${day!.name} is logged.`, [
-      { text: 'OK', onPress: () => navigation.goBack() },
-    ]);
+            saveWorkoutLog(dayId, [...plannedEntries, ...extraEntries]);
+            Alert.alert('Workout saved', `Nice work — ${day!.name} is logged.`, [
+              { text: 'OK', onPress: () => navigation.goBack() },
+            ]);
+          },
+        },
+      ]
+    );
   }
 
   // ── Render helpers ───────────────────────────────────────────────────────
@@ -469,6 +504,8 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     if (!exercise) return null;
 
     const isSkipped = skippedExercises.has(dayExercise.id);
+    const isCollapsed = collapsedCards.has(dayExercise.id);
+    const isCompleted = completedCards.has(dayExercise.id);
     const hasAlt = !!dayExercise.alternativeExerciseId;
     const usingAlt = hasAlt && activeExId === dayExercise.alternativeExerciseId;
     const primaryExercise = getExerciseById(dayExercise.exerciseId);
@@ -478,8 +515,22 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     const isTime = exercise.trackingType === 'time';
 
     return (
-      <View key={dayExercise.id} style={[styles.card, isSkipped && styles.cardSkipped]}>
+      <View
+        key={dayExercise.id}
+        style={[styles.card, isSkipped && styles.cardSkipped, isCompleted && styles.cardCompleted]}
+      >
         <View style={styles.cardHeader}>
+          <Pressable
+            onPress={() => toggleCollapse(dayExercise.id)}
+            hitSlop={8}
+            style={styles.collapseBtn}
+          >
+            <Ionicons
+              name={isCollapsed ? 'chevron-down' : 'chevron-up'}
+              size={18}
+              color={isCompleted ? colors.success : colors.textMuted}
+            />
+          </Pressable>
           <View style={{ flex: 1 }}>
             <Text style={[fontStyles.heading, { color: colors.text }]}>{exercise.name}</Text>
             <Text style={[fontStyles.bodyMuted, { color: colors.textMuted }]}>
@@ -491,9 +542,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
           </View>
           <View style={styles.cardActions}>
             <Pressable
-              onPress={() =>
-                navigation.navigate('ExerciseHistory', { exerciseId: exercise.id })
-              }
+              onPress={() => navigation.navigate('ExerciseHistory', { exerciseId: exercise.id })}
               hitSlop={8}
             >
               <Ionicons name="time-outline" size={20} color={colors.textMuted} />
@@ -501,69 +550,96 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
           </View>
         </View>
 
-        {hasAlt && altExercise && primaryExercise && !isSkipped && (
-          <View style={styles.altSegment}>
-            <Pressable
-              style={[styles.altSegBtn, !usingAlt && styles.altSegBtnActive]}
-              onPress={() => usingAlt && toggleAlternative(dayExercise)}
-            >
-              <Text
-                style={[styles.altSegLabel, !usingAlt && styles.altSegLabelActive]}
-                numberOfLines={1}
-              >
-                {primaryExercise.name}
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.altSegBtn, usingAlt && styles.altSegBtnActive]}
-              onPress={() => !usingAlt && toggleAlternative(dayExercise)}
-            >
-              <Text
-                style={[styles.altSegLabel, usingAlt && styles.altSegLabelActive]}
-                numberOfLines={1}
-              >
-                {altExercise.name}
-              </Text>
-            </Pressable>
+        {isCollapsed ? (
+          <View style={styles.cardStatusLine}>
+            {isCompleted && (
+              <Text style={[styles.cardStatusText, { color: colors.success }]}>✓ Done</Text>
+            )}
+            {isSkipped && !isCompleted && (
+              <Text style={[styles.cardStatusText, { color: colors.textMuted }]}>— Skipped</Text>
+            )}
           </View>
-        )}
-
-        {isSkipped ? (
-          <Text style={styles.skippedLabel}>Skipped — won't count toward progress this session</Text>
         ) : (
           <>
-            {settings.overloadEnabled && suggestion.message ? (
-              <Text style={styles.suggestion}>{suggestion.message}</Text>
-            ) : null}
-            {renderSetHeader(isTime)}
-            {renderSetRows(
-              sets,
-              isTime,
-              suggestion,
-              (index, field, value) => updateSet(dayExercise.id, index, field, value),
-              (index, part, value) => updateDurationPart(dayExercise.id, index, part, value),
-              sets.length > 1 ? () => removeLastSet(dayExercise.id) : undefined
+            {hasAlt && altExercise && primaryExercise && !isSkipped && (
+              <View style={styles.altSegment}>
+                <Pressable
+                  style={[styles.altSegBtn, !usingAlt && styles.altSegBtnActive]}
+                  onPress={() => usingAlt && toggleAlternative(dayExercise)}
+                >
+                  <Text
+                    style={[styles.altSegLabel, !usingAlt && styles.altSegLabelActive]}
+                    numberOfLines={1}
+                  >
+                    {primaryExercise.name}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.altSegBtn, usingAlt && styles.altSegBtnActive]}
+                  onPress={() => !usingAlt && toggleAlternative(dayExercise)}
+                >
+                  <Text
+                    style={[styles.altSegLabel, usingAlt && styles.altSegLabelActive]}
+                    numberOfLines={1}
+                  >
+                    {altExercise.name}
+                  </Text>
+                </Pressable>
+              </View>
             )}
-            <Pressable
-              style={styles.addSetBtn}
-              onPress={() => addSet(dayExercise.id, isTime)}
-            >
-              <Ionicons name="add" size={16} color={colors.primary} />
-              <Text style={[styles.addSetLabel, { color: colors.primary }]}>Add Set</Text>
-            </Pressable>
+
+            {isSkipped ? (
+              <Text style={styles.skippedLabel}>
+                Skipped — won't count toward progress this session
+              </Text>
+            ) : (
+              <>
+                {settings.overloadEnabled && suggestion.message ? (
+                  <Text style={styles.suggestion}>{suggestion.message}</Text>
+                ) : null}
+                {renderSetHeader(isTime)}
+                {renderSetRows(
+                  sets,
+                  isTime,
+                  suggestion,
+                  (index, field, value) => updateSet(dayExercise.id, index, field, value),
+                  (index, part, value) => updateDurationPart(dayExercise.id, index, part, value),
+                  sets.length > 1 ? () => removeLastSet(dayExercise.id) : undefined
+                )}
+                <Pressable
+                  style={styles.addSetBtn}
+                  onPress={() => addSet(dayExercise.id, isTime)}
+                >
+                  <Ionicons name="add" size={16} color={colors.primary} />
+                  <Text style={[styles.addSetLabel, { color: colors.primary }]}>Add Set</Text>
+                </Pressable>
+              </>
+            )}
+
+            <View style={styles.cardFooter}>
+              {isSkipped ? (
+                <Pressable onPress={() => toggleSkip(dayExercise.id)} style={styles.skipBtnActive}>
+                  <Text style={[styles.skipBtnLabel, { color: colors.primary }]}>Unskip</Text>
+                </Pressable>
+              ) : isCompleted ? (
+                <Pressable onPress={() => toggleComplete(dayExercise.id)} style={styles.completeBtnActive}>
+                  <Ionicons name="checkmark-circle" size={14} color="#fff" />
+                  <Text style={styles.completeBtnActiveLabel}>Undo</Text>
+                </Pressable>
+              ) : (
+                <>
+                  <Pressable onPress={() => toggleSkip(dayExercise.id)} style={styles.skipBtn}>
+                    <Text style={[styles.skipBtnLabel, { color: colors.danger }]}>Skip</Text>
+                  </Pressable>
+                  <Pressable onPress={() => toggleComplete(dayExercise.id)} style={styles.completeBtn}>
+                    <Ionicons name="checkmark-circle-outline" size={14} color={colors.success} />
+                    <Text style={[styles.completeBtnLabel, { color: colors.success }]}>Done</Text>
+                  </Pressable>
+                </>
+              )}
+            </View>
           </>
         )}
-
-        <View style={styles.cardFooter}>
-          <Pressable
-            onPress={() => toggleSkip(dayExercise.id)}
-            style={[styles.skipBtn, isSkipped && styles.skipBtnActive]}
-          >
-            <Text style={[styles.skipBtnLabel, { color: isSkipped ? colors.primary : colors.danger }]}>
-              {isSkipped ? 'Unskip' : 'Skip'}
-            </Text>
-          </Pressable>
-        </View>
       </View>
     );
   }
@@ -574,10 +650,23 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     const isTime = exercise.trackingType === 'time';
     const sets = extraSets[ee.id] ?? [];
     const suggestion = getProgressSuggestion(exercise, logs, settings.unit);
+    const isCollapsed = collapsedCards.has(ee.id);
+    const isCompleted = completedCards.has(ee.id);
 
     return (
-      <View key={ee.id} style={[styles.card, styles.cardExtra]}>
+      <View key={ee.id} style={[styles.card, styles.cardExtra, isCompleted && styles.cardCompleted]}>
         <View style={styles.cardHeader}>
+          <Pressable
+            onPress={() => toggleCollapse(ee.id)}
+            hitSlop={8}
+            style={styles.collapseBtn}
+          >
+            <Ionicons
+              name={isCollapsed ? 'chevron-down' : 'chevron-up'}
+              size={18}
+              color={isCompleted ? colors.success : colors.textMuted}
+            />
+          </Pressable>
           <View style={{ flex: 1 }}>
             <Text style={[fontStyles.heading, { color: colors.text }]}>{exercise.name}</Text>
             <Text style={[fontStyles.bodyMuted, { color: colors.textMuted }]}>
@@ -586,9 +675,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
           </View>
           <View style={styles.cardActions}>
             <Pressable
-              onPress={() =>
-                navigation.navigate('ExerciseHistory', { exerciseId: exercise.id })
-              }
+              onPress={() => navigation.navigate('ExerciseHistory', { exerciseId: exercise.id })}
               hitSlop={8}
             >
               <Ionicons name="time-outline" size={20} color={colors.textMuted} />
@@ -599,22 +686,46 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
           </View>
         </View>
 
-        {settings.overloadEnabled && suggestion.message ? (
-          <Text style={styles.suggestion}>{suggestion.message}</Text>
-        ) : null}
-        {renderSetHeader(isTime)}
-        {renderSetRows(
-          sets,
-          isTime,
-          suggestion,
-          (index, field, value) => updateExtraSet(ee.id, index, field, value),
-          (index, part, value) => updateExtraDurationPart(ee.id, index, part, value),
-          sets.length > 1 ? () => removeLastExtraSet(ee.id) : undefined
+        {isCollapsed ? (
+          <View style={styles.cardStatusLine}>
+            {isCompleted && (
+              <Text style={[styles.cardStatusText, { color: colors.success }]}>✓ Done</Text>
+            )}
+          </View>
+        ) : (
+          <>
+            {settings.overloadEnabled && suggestion.message ? (
+              <Text style={styles.suggestion}>{suggestion.message}</Text>
+            ) : null}
+            {renderSetHeader(isTime)}
+            {renderSetRows(
+              sets,
+              isTime,
+              suggestion,
+              (index, field, value) => updateExtraSet(ee.id, index, field, value),
+              (index, part, value) => updateExtraDurationPart(ee.id, index, part, value),
+              sets.length > 1 ? () => removeLastExtraSet(ee.id) : undefined
+            )}
+            <Pressable style={styles.addSetBtn} onPress={() => addExtraSet(ee.id)}>
+              <Ionicons name="add" size={16} color={colors.primary} />
+              <Text style={[styles.addSetLabel, { color: colors.primary }]}>Add Set</Text>
+            </Pressable>
+
+            <View style={styles.cardFooter}>
+              {isCompleted ? (
+                <Pressable onPress={() => toggleComplete(ee.id)} style={styles.completeBtnActive}>
+                  <Ionicons name="checkmark-circle" size={14} color="#fff" />
+                  <Text style={styles.completeBtnActiveLabel}>Undo</Text>
+                </Pressable>
+              ) : (
+                <Pressable onPress={() => toggleComplete(ee.id)} style={styles.completeBtn}>
+                  <Ionicons name="checkmark-circle-outline" size={14} color={colors.success} />
+                  <Text style={[styles.completeBtnLabel, { color: colors.success }]}>Done</Text>
+                </Pressable>
+              )}
+            </View>
+          </>
         )}
-        <Pressable style={styles.addSetBtn} onPress={() => addExtraSet(ee.id)}>
-          <Ionicons name="add" size={16} color={colors.primary} />
-          <Text style={[styles.addSetLabel, { color: colors.primary }]}>Add Set</Text>
-        </Pressable>
       </View>
     );
   }
@@ -701,6 +812,10 @@ function createStyles(colors: ThemeColors) {
     cardSkipped: {
       opacity: 0.5,
     },
+    cardCompleted: {
+      borderLeftWidth: 3,
+      borderLeftColor: colors.success,
+    },
     cardExtra: {
       borderWidth: 1,
       borderColor: colors.primary,
@@ -719,6 +834,19 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       justifyContent: 'flex-end',
       marginTop: spacing.sm,
+      gap: spacing.sm,
+    },
+    collapseBtn: {
+      marginRight: spacing.sm,
+      alignSelf: 'center',
+    },
+    cardStatusLine: {
+      paddingTop: spacing.xs,
+      minHeight: 20,
+    },
+    cardStatusText: {
+      fontSize: 12,
+      fontWeight: '600',
     },
     skipBtn: {
       paddingVertical: spacing.xs,
@@ -728,11 +856,43 @@ function createStyles(colors: ThemeColors) {
       borderColor: colors.danger,
     },
     skipBtnActive: {
+      paddingVertical: spacing.xs,
+      paddingHorizontal: spacing.md,
+      borderRadius: radius.sm,
+      borderWidth: 1,
       borderColor: colors.primary,
     },
     skipBtnLabel: {
       fontSize: 12,
       fontWeight: '600',
+    },
+    completeBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingVertical: spacing.xs,
+      paddingHorizontal: spacing.md,
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      borderColor: colors.success,
+    },
+    completeBtnLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    completeBtnActive: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingVertical: spacing.xs,
+      paddingHorizontal: spacing.md,
+      borderRadius: radius.sm,
+      backgroundColor: colors.success,
+    },
+    completeBtnActiveLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: '#fff',
     },
     altSegment: {
       flexDirection: 'row',

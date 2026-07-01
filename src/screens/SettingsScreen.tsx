@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { useAppData } from '../context/AppDataContext';
 import { fontStyles, radius, spacing, ThemeColors } from '../theme';
@@ -34,6 +34,7 @@ export function SettingsScreen() {
 
   return (
     <ScreenContainer style={styles.container} edges={['top', 'bottom']}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <Text style={[fontStyles.title, styles.title, { color: colors.text }]}>Settings</Text>
 
       <Text style={[fontStyles.label, { color: colors.textMuted }]}>APPEARANCE</Text>
@@ -134,6 +135,7 @@ export function SettingsScreen() {
         All workout data stays on this device. There is no account, sync, or internet
         connection — uninstalling the app deletes your data.
       </Text>
+      </ScrollView>
     </ScreenContainer>
   );
 }
@@ -141,8 +143,12 @@ export function SettingsScreen() {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     container: {
+      flex: 1,
+    },
+    scrollContent: {
       paddingTop: spacing.lg,
       paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.xl,
     },
     title: {
       marginBottom: spacing.lg,
