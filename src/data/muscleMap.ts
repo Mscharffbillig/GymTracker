@@ -15,17 +15,20 @@ export const TRACKED_MUSCLE_GROUPS: MuscleGroup[] = [
   'hamstrings',
   'calves',
   'hipAdductors',
+  'neck',
 ];
-
-export type HighlightLevel = 'fresh' | 'recent' | 'stale' | 'none';
 
 export interface MuscleGroupStatus {
   muscleGroup: MuscleGroup;
-  daysAgo: number | null;
-  highlightLevel: HighlightLevel;
+  heat: number;
+  isOverworked: boolean;
+  lastTrainedDaysAgo: number | null;
   exerciseNamesInProgram: string[];
   weightProgressLabel: string | null;
 }
+
+const PRIMARY_HEAT = 3;
+const SECONDARY_HEAT = 1;
 
 function topWeightOf(log: ExerciseLog): number {
   const validSets = log.sets.filter((s) => s.reps > 0);
@@ -38,53 +41,80 @@ function getMuscleGroupStatus(
   exercises: Exercise[],
   days: Day[],
   unit: WeightUnit,
-  freshDays: number,
-  recentDays: number
+  recentDays: number,
+  heatWarningThreshold: number
 ): MuscleGroupStatus {
-  const groupExerciseIds = new Set(
-    exercises.filter((e) => e.muscleGroup === muscleGroup).map((e) => e.id)
-  );
-
   const exerciseNamesInProgram = Array.from(
     new Set(
       days
         .flatMap((d) => d.exercises)
         .map((de) => exercises.find((e) => e.id === de.exerciseId))
-        .filter((e): e is Exercise => !!e && e.muscleGroup === muscleGroup)
+        .filter(
+          (e): e is Exercise =>
+            !!e &&
+            (e.muscleGroup === muscleGroup ||
+              (e.secondaryMuscleGroups ?? []).includes(muscleGroup))
+        )
         .map((e) => e.name)
     )
   );
 
-  const groupLogs = logs
-    .filter((l) => groupExerciseIds.has(l.exerciseId))
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const now = Date.now();
+  let totalHeat = 0;
+  let lastTrainedDaysAgo: number | null = null;
 
-  if (groupLogs.length === 0) {
-    return {
-      muscleGroup,
-      daysAgo: null,
-      highlightLevel: 'none',
-      exerciseNamesInProgram,
-      weightProgressLabel: null,
-    };
+  const relevantLogs = logs.filter((log) => {
+    const daysAgo = (now - new Date(log.date).getTime()) / 86400000;
+    return daysAgo <= recentDays;
+  });
+
+  for (const log of relevantLogs) {
+    const exercise = exercises.find((e) => e.id === log.exerciseId);
+    if (!exercise) continue;
+
+    const daysAgo = (now - new Date(log.date).getTime()) / 86400000;
+    const decay = Math.max(0, 1 - daysAgo / recentDays);
+
+    let sessionPoints = 0;
+    if (exercise.muscleGroup === muscleGroup) {
+      sessionPoints = PRIMARY_HEAT;
+    } else if ((exercise.secondaryMuscleGroups ?? []).includes(muscleGroup)) {
+      sessionPoints = SECONDARY_HEAT;
+    }
+
+    if (sessionPoints > 0) {
+      totalHeat += sessionPoints * decay;
+      const daysAgoInt = Math.floor(daysAgo);
+      if (lastTrainedDaysAgo === null || daysAgoInt < lastTrainedDaysAgo) {
+        lastTrainedDaysAgo = daysAgoInt;
+      }
+    }
   }
 
-  const mostRecent = groupLogs[groupLogs.length - 1];
-  const daysAgo = Math.floor((Date.now() - new Date(mostRecent.date).getTime()) / 86400000);
-  const highlightLevel: HighlightLevel =
-    daysAgo <= freshDays ? 'fresh' : daysAgo <= recentDays ? 'recent' : 'stale';
+  // weight progress: look at all-time logs for primary exercises
+  const primaryExerciseIds = new Set(
+    exercises
+      .filter((e) => e.muscleGroup === muscleGroup)
+      .map((e) => e.id)
+  );
+  const primaryLogs = logs
+    .filter((l) => primaryExerciseIds.has(l.exerciseId))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-  const earliestTop = topWeightOf(groupLogs[0]);
-  const latestTop = topWeightOf(mostRecent);
-  const weightProgressLabel =
-    groupLogs.length > 1 && earliestTop > 0 && latestTop > earliestTop
-      ? `${earliestTop}${unit} → ${latestTop}${unit}`
-      : null;
+  let weightProgressLabel: string | null = null;
+  if (primaryLogs.length > 1) {
+    const earliestTop = topWeightOf(primaryLogs[0]);
+    const latestTop = topWeightOf(primaryLogs[primaryLogs.length - 1]);
+    if (earliestTop > 0 && latestTop > earliestTop) {
+      weightProgressLabel = `${earliestTop}${unit} → ${latestTop}${unit}`;
+    }
+  }
 
   return {
     muscleGroup,
-    daysAgo,
-    highlightLevel,
+    heat: totalHeat,
+    isOverworked: totalHeat >= heatWarningThreshold,
+    lastTrainedDaysAgo,
     exerciseNamesInProgram,
     weightProgressLabel,
   };
@@ -95,8 +125,8 @@ export function getAllMuscleGroupStatuses(
   exercises: Exercise[],
   days: Day[],
   unit: WeightUnit,
-  freshDays: number,
-  recentDays: number
+  recentDays: number,
+  heatWarningThreshold: number
 ): Record<MuscleGroup, MuscleGroupStatus> {
   const result = {} as Record<MuscleGroup, MuscleGroupStatus>;
   for (const muscleGroup of TRACKED_MUSCLE_GROUPS) {
@@ -106,8 +136,8 @@ export function getAllMuscleGroupStatuses(
       exercises,
       days,
       unit,
-      freshDays,
-      recentDays
+      recentDays,
+      heatWarningThreshold
     );
   }
   return result;

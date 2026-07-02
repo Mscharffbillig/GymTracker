@@ -7,6 +7,7 @@ import { ThemeMode, WeightUnit } from '../types';
 
 const FRESH_OPTIONS = [1, 2, 3, 5];
 const RECENT_OPTIONS = [4, 6, 8, 10, 14];
+const HEAT_WARNING_OPTIONS = [5, 6, 7, 8, 10];
 
 export function SettingsScreen() {
   const { settings, updateSettings, colors } = useAppData();
@@ -129,6 +130,32 @@ export function SettingsScreen() {
       </View>
       <Text style={[fontStyles.bodyMuted, styles.helperText, { color: colors.textMuted }]}>
         When on, each exercise shows a weight or rep suggestion based on your last session.
+      </Text>
+
+      <Text style={[fontStyles.label, styles.sectionSpacing, { color: colors.textMuted }]}>
+        HEAT MAP — OVERWORK WARNING (HEAT POINTS)
+      </Text>
+      <View style={styles.chipRow}>
+        {HEAT_WARNING_OPTIONS.map((val) => (
+          <Pressable
+            key={val}
+            onPress={() => updateSettings({ ...settings, heatWarningThreshold: val })}
+            style={[styles.chip, settings.heatWarningThreshold === val && styles.optionActive]}
+          >
+            <Text
+              style={[
+                styles.optionLabel,
+                settings.heatWarningThreshold === val && styles.optionLabelActive,
+              ]}
+            >
+              {val}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={[fontStyles.bodyMuted, styles.helperText, { color: colors.textMuted }]}>
+        Primary exercises add 3 heat, secondary add 1. Heat fades over your decay window.
+        At this threshold the muscle shows a recovery warning on the body map.
       </Text>
 
       <Text style={[fontStyles.bodyMuted, styles.footnote, { color: colors.textMuted }]}>

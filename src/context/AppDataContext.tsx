@@ -50,6 +50,7 @@ interface AppDataContextValue {
     name: string,
     category: ExerciseCategory,
     muscleGroup: MuscleGroup | null,
+    secondaryMuscleGroups: MuscleGroup[],
     trackingType: TrackingType
   ) => Exercise;
   getExerciseById: (exerciseId: string) => Exercise | undefined;
@@ -83,6 +84,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     freshDays: 2,
     recentDays: 6,
     overloadEnabled: true,
+    heatWarningThreshold: 7,
   });
   const [draftWorkout, setDraftWorkout] = useState<DraftWorkout | null>(null);
   const colors = settings.theme === 'dark' ? darkColors : lightColors;
@@ -222,6 +224,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     name: string,
     category: ExerciseCategory,
     muscleGroup: MuscleGroup | null,
+    secondaryMuscleGroups: MuscleGroup[],
     trackingType: TrackingType
   ): Exercise {
     const exercise: Exercise = {
@@ -229,6 +232,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       name,
       category,
       muscleGroup,
+      secondaryMuscleGroups,
       trackingType,
       isCustom: true,
     };

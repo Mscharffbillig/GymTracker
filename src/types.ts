@@ -26,13 +26,15 @@ export type MuscleGroup =
   | 'quads'
   | 'hamstrings'
   | 'calves'
-  | 'hipAdductors';
+  | 'hipAdductors'
+  | 'neck';
 
 export interface Exercise {
   id: string;
   name: string;
   category: ExerciseCategory;
   muscleGroup: MuscleGroup | null;
+  secondaryMuscleGroups?: MuscleGroup[];
   trackingType: TrackingType;
   isCustom: boolean;
 }
@@ -95,4 +97,5 @@ export interface Settings {
   freshDays: number;
   recentDays: number;
   overloadEnabled: boolean;
+  heatWarningThreshold: number;
 }

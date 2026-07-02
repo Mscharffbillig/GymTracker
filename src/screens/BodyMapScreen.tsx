@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import Body, { ExtendedBodyPart, Slug } from 'react-native-body-highlighter';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { Button } from '../components/Button';
@@ -9,8 +10,8 @@ import {
   BodyMapMode,
   buildHighlighterData,
   getSlugToGroups,
-  LEVEL_COLORS,
-  PROJECTED_COLOR,
+  HEAT_COLORS,
+  PROJECTED_PRIMARY_COLOR,
   SLUG_LABELS,
 } from '../data/bodySlugMap';
 import { MUSCLE_GROUP_LABELS } from '../data/exerciseCatalog';
@@ -18,7 +19,7 @@ import { fontStyles, radius, spacing, ThemeColors } from '../theme';
 
 type BodyView = 'front' | 'back';
 
-function statusLine(daysAgo: number | null): string {
+function lastTrainedLine(daysAgo: number | null): string {
   if (daysAgo === null) return 'Not trained yet';
   if (daysAgo === 0) return 'Trained today';
   if (daysAgo === 1) return 'Trained yesterday';
@@ -33,31 +34,42 @@ export function BodyMapScreen() {
   const [selectedSlug, setSelectedSlug] = useState<Slug | null>(null);
 
   const statuses = useMemo(
-    () => getAllMuscleGroupStatuses(logs, exercises, days, settings.unit, settings.freshDays, settings.recentDays),
-    [logs, exercises, days, settings.unit, settings.freshDays, settings.recentDays]
+    () =>
+      getAllMuscleGroupStatuses(
+        logs,
+        exercises,
+        days,
+        settings.unit,
+        settings.recentDays,
+        settings.heatWarningThreshold
+      ),
+    [logs, exercises, days, settings.unit, settings.recentDays, settings.heatWarningThreshold]
   );
 
   const slugToGroups = useMemo(() => getSlugToGroups(), []);
 
-  const highlighterData = useMemo(() => buildHighlighterData(statuses, mode), [statuses, mode]);
+  const highlighterData = useMemo(
+    () => buildHighlighterData(statuses, mode, settings.heatWarningThreshold),
+    [statuses, mode, settings.heatWarningThreshold]
+  );
 
   const selectedGroups = selectedSlug ? slugToGroups[selectedSlug] ?? [] : [];
 
-  const legend =
-    mode === 'completed'
-      ? [
-          { label: `Fresh (0–${settings.freshDays}d)`, color: LEVEL_COLORS.fresh! },
-          {
-            label: `Recent (${settings.freshDays + 1}–${settings.recentDays}d)`,
-            color: LEVEL_COLORS.recent!,
-          },
-          { label: `Needs work (${settings.recentDays + 1}d+)`, color: LEVEL_COLORS.stale! },
-          { label: 'Not in program', color: colors.surfaceAlt },
-        ]
-      : [
-          { label: 'Covered by your program', color: PROJECTED_COLOR },
-          { label: "Won't be hit", color: colors.surfaceAlt },
-        ];
+  const completedLegend = [
+    { label: 'Secondary hit', color: HEAT_COLORS.faint },
+    { label: 'Building up', color: HEAT_COLORS.low },
+    { label: 'Well worked', color: HEAT_COLORS.medium },
+    { label: 'Freshly trained', color: HEAT_COLORS.high },
+    { label: 'High volume', color: HEAT_COLORS.veryHigh },
+    { label: 'Recover!', color: HEAT_COLORS.overworked },
+  ];
+
+  const projectedLegend = [
+    { label: 'Covered by your program', color: PROJECTED_PRIMARY_COLOR },
+    { label: "Won't be hit", color: colors.surfaceAlt },
+  ];
+
+  const legend = mode === 'completed' ? completedLegend : projectedLegend;
 
   function handleBodyPartPress(part: ExtendedBodyPart) {
     if (part.slug) setSelectedSlug(part.slug);
@@ -89,7 +101,7 @@ export function BodyMapScreen() {
             style={[styles.toggleOption, mode === m && styles.toggleOptionActive]}
           >
             <Text style={[styles.toggleLabel, mode === m && styles.toggleLabelActive]}>
-              {m === 'completed' ? 'Completed' : 'Projected'}
+              {m === 'completed' ? 'Heat Map' : 'Projected'}
             </Text>
           </Pressable>
         ))}
@@ -143,8 +155,18 @@ export function BodyMapScreen() {
                             {MUSCLE_GROUP_LABELS[group].toUpperCase()}
                           </Text>
                         ) : null}
+
+                        {status.isOverworked && (
+                          <View style={styles.warningRow}>
+                            <Ionicons name="warning" size={16} color={HEAT_COLORS.overworked} />
+                            <Text style={[styles.warningText, { color: HEAT_COLORS.overworked }]}>
+                              High accumulated volume — allow this muscle to recover before pushing it again.
+                            </Text>
+                          </View>
+                        )}
+
                         <Text style={[fontStyles.bodyMuted, styles.statusLine, { color: colors.textMuted }]}>
-                          {statusLine(status.daysAgo)}
+                          {lastTrainedLine(status.lastTrainedDaysAgo)}
                         </Text>
                         {status.weightProgressLabel ? (
                           <Text style={[fontStyles.body, styles.progressLine, { color: colors.primary }]}>
@@ -263,6 +285,18 @@ function createStyles(colors: ThemeColors) {
     groupBlock: {
       marginTop: spacing.md,
       gap: spacing.xs,
+    },
+    warningRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.xs,
+      marginTop: spacing.xs,
+    },
+    warningText: {
+      flex: 1,
+      fontSize: 13,
+      fontWeight: '600',
+      lineHeight: 18,
     },
     closeBtn: {
       marginTop: spacing.lg,

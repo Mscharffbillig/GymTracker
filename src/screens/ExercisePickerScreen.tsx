@@ -32,6 +32,7 @@ export function ExercisePickerScreen({ route, navigation }: Props) {
   const [customMuscleGroup, setCustomMuscleGroup] = useState<MuscleGroup | null>(
     CATEGORY_TO_MUSCLE_GROUPS.chest[0]
   );
+  const [customSecondaryGroups, setCustomSecondaryGroups] = useState<MuscleGroup[]>([]);
   const [customTrackingType, setCustomTrackingType] = useState<TrackingType>('reps');
 
   React.useLayoutEffect(() => {
@@ -45,7 +46,14 @@ export function ExercisePickerScreen({ route, navigation }: Props) {
   function handleSelectCustomCategory(cat: ExerciseCategory) {
     setCustomCategory(cat);
     setCustomMuscleGroup(CATEGORY_TO_MUSCLE_GROUPS[cat][0] ?? null);
+    setCustomSecondaryGroups([]);
     setCustomTrackingType(cat === 'cardio' ? 'time' : 'reps');
+  }
+
+  function toggleSecondaryGroup(mg: MuscleGroup) {
+    setCustomSecondaryGroups((prev) =>
+      prev.includes(mg) ? prev.filter((g) => g !== mg) : [...prev, mg]
+    );
   }
 
   const filtered = useMemo(() => {
@@ -82,6 +90,7 @@ export function ExercisePickerScreen({ route, navigation }: Props) {
       customName.trim(),
       customCategory,
       customMuscleGroup,
+      customSecondaryGroups,
       customTrackingType
     );
     setCustomModalVisible(false);
@@ -231,6 +240,35 @@ export function ExercisePickerScreen({ route, navigation }: Props) {
                 </View>
               </>
             ) : null}
+
+            {customMuscleGroup !== null && (
+              <>
+                <Text style={[fontStyles.label, styles.categoryLabel, { color: colors.textMuted }]}>
+                  SECONDARY MUSCLES (optional)
+                </Text>
+                <View style={styles.categoryGrid}>
+                  {CATEGORY_TO_MUSCLE_GROUPS[customCategory]
+                    .filter((mg) => mg !== customMuscleGroup)
+                    .map((mg) => {
+                      const active = customSecondaryGroups.includes(mg);
+                      return (
+                        <Pressable
+                          key={mg}
+                          onPress={() => toggleSecondaryGroup(mg)}
+                          style={[styles.chip, active && styles.chipActive]}
+                        >
+                          <Text
+                            numberOfLines={1}
+                            style={[styles.chipLabel, active && styles.chipLabelActive]}
+                          >
+                            {MUSCLE_GROUP_LABELS[mg]}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                </View>
+              </>
+            )}
 
             <Text style={[fontStyles.label, styles.categoryLabel, { color: colors.textMuted }]}>
               TRACKING TYPE
