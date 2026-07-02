@@ -429,11 +429,13 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
               }
               placeholderTextColor={colors.textMuted}
             />
-            {isLast && onRemoveLast && (
-              <Pressable onPress={onRemoveLast} hitSlop={8} style={styles.removeSetBtn}>
-                <Ionicons name="close" size={16} color={colors.textMuted} />
-              </Pressable>
-            )}
+            <View style={styles.removeSetBtn}>
+              {isLast && onRemoveLast ? (
+                <Pressable onPress={onRemoveLast} hitSlop={8}>
+                  <Ionicons name="close" size={16} color={colors.textMuted} />
+                </Pressable>
+              ) : null}
+            </View>
           </View>
         );
       }
@@ -459,11 +461,13 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
             }
             placeholderTextColor={colors.textMuted}
           />
-          {isLast && onRemoveLast && (
-            <Pressable onPress={onRemoveLast} hitSlop={8} style={styles.removeSetBtn}>
-              <Ionicons name="close" size={16} color={colors.textMuted} />
-            </Pressable>
-          )}
+          <View style={styles.removeSetBtn}>
+            {isLast && onRemoveLast ? (
+              <Pressable onPress={onRemoveLast} hitSlop={8}>
+                <Ionicons name="close" size={16} color={colors.textMuted} />
+              </Pressable>
+            ) : null}
+          </View>
         </View>
       );
     });

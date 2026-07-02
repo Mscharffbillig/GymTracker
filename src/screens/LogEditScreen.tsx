@@ -148,11 +148,13 @@ export function LogEditScreen({ route, navigation }: Props) {
                     onChangeText={(v) => updateDuration(index, 'seconds', v)}
                     placeholderTextColor={colors.textMuted}
                   />
-                  {isLast && sets.length > 1 && (
-                    <Pressable onPress={removeLastSet} hitSlop={8} style={styles.removeSetBtn}>
-                      <Ionicons name="close" size={16} color={colors.textMuted} />
-                    </Pressable>
-                  )}
+                  <View style={styles.removeSetBtn}>
+                    {isLast && sets.length > 1 ? (
+                      <Pressable onPress={removeLastSet} hitSlop={8}>
+                        <Ionicons name="close" size={16} color={colors.textMuted} />
+                      </Pressable>
+                    ) : null}
+                  </View>
                 </View>
               );
             }
@@ -175,11 +177,13 @@ export function LogEditScreen({ route, navigation }: Props) {
                   onChangeText={(v) => updateSet(index, 'weight', v)}
                   placeholderTextColor={colors.textMuted}
                 />
-                {isLast && sets.length > 1 && (
-                  <Pressable onPress={removeLastSet} hitSlop={8} style={styles.removeSetBtn}>
-                    <Ionicons name="close" size={16} color={colors.textMuted} />
-                  </Pressable>
-                )}
+                <View style={styles.removeSetBtn}>
+                  {isLast && sets.length > 1 ? (
+                    <Pressable onPress={removeLastSet} hitSlop={8}>
+                      <Ionicons name="close" size={16} color={colors.textMuted} />
+                    </Pressable>
+                  ) : null}
+                </View>
               </View>
             );
           })}
