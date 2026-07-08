@@ -14,16 +14,17 @@ import { Day } from '../types';
 type Props = NativeStackScreenProps<ProgramStackParamList, 'Days'>;
 
 export function DaysListScreen({ navigation }: Props) {
-  const { days, addDay, moveDay, deleteDay, colors } = useAppData();
+  const { days, addDay, moveDay, deleteDay, colors, draftWorkout } = useAppData();
   const styles = createStyles(colors);
   const [addModalVisible, setAddModalVisible] = useState(false);
 
   const sortedDays = [...days].sort((a, b) => a.order - b.order);
 
   function renderItem({ item, index }: { item: Day; index: number }) {
+    const hasActiveDraft = draftWorkout?.dayId === item.id;
     return (
       <Pressable
-        style={styles.row}
+        style={[styles.row, hasActiveDraft && styles.rowActive]}
         onPress={() => navigation.navigate('DayDetail', { dayId: item.id })}
       >
         <View style={styles.rowMain}>
@@ -31,6 +32,14 @@ export function DaysListScreen({ navigation }: Props) {
           <Text style={[fontStyles.bodyMuted, { color: colors.textMuted }]}>
             {item.exercises.length} exercise{item.exercises.length === 1 ? '' : 's'}
           </Text>
+          {hasActiveDraft && (
+            <View style={styles.draftBadge}>
+              <Ionicons name="radio-button-on" size={10} color={colors.primary} />
+              <Text style={[styles.draftBadgeText, { color: colors.primary }]}>
+                Session in progress
+              </Text>
+            </View>
+          )}
         </View>
         <View style={styles.rowActions}>
           <Pressable
@@ -122,9 +131,23 @@ function createStyles(colors: ThemeColors) {
       alignItems: 'center',
       justifyContent: 'space-between',
     },
+    rowActive: {
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
     rowMain: {
       flex: 1,
       gap: spacing.xs,
+    },
+    draftBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: 2,
+    },
+    draftBadgeText: {
+      fontSize: 11,
+      fontWeight: '600',
     },
     rowActions: {
       flexDirection: 'row',

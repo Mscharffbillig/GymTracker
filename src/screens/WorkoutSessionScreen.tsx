@@ -112,6 +112,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
   const [showResumeBanner, setShowResumeBanner] = useState(hasDraft);
   const [collapsedCards, setCollapsedCards] = useState<Set<string>>(new Set());
   const [completedCards, setCompletedCards] = useState<Set<string>>(new Set());
+  const [rawWeightInputs, setRawWeightInputs] = useState<Record<string, string>>({});
 
   // ── Draft auto-save ──────────────────────────────────────────────────────
 
@@ -392,6 +393,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     sets: SetLog[],
     isTime: boolean,
     suggestion: ProgressSuggestion,
+    keyPrefix: string,
     onUpdateSet: (index: number, field: 'reps' | 'weight', value: string) => void,
     onUpdateDuration: (index: number, part: 'minutes' | 'seconds', value: string) => void,
     onRemoveLast?: () => void
@@ -454,8 +456,18 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
           <TextInput
             style={[styles.input, styles.inputCol]}
             keyboardType="decimal-pad"
-            value={set.weight === 0 ? '' : String(set.weight)}
-            onChangeText={(v) => onUpdateSet(index, 'weight', v)}
+            value={rawWeightInputs[`${keyPrefix}-${index}`] ?? (set.weight === 0 ? '' : String(set.weight))}
+            onChangeText={(v) => {
+              setRawWeightInputs((prev) => ({ ...prev, [`${keyPrefix}-${index}`]: v }));
+              onUpdateSet(index, 'weight', v);
+            }}
+            onBlur={() =>
+              setRawWeightInputs((prev) => {
+                const next = { ...prev };
+                delete next[`${keyPrefix}-${index}`];
+                return next;
+              })
+            }
             placeholder={
               settings.overloadEnabled && suggestion.weight ? String(suggestion.weight) : ''
             }
@@ -606,6 +618,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
                   sets,
                   isTime,
                   suggestion,
+                  dayExercise.id,
                   (index, field, value) => updateSet(dayExercise.id, index, field, value),
                   (index, part, value) => updateDurationPart(dayExercise.id, index, part, value),
                   sets.length > 1 ? () => removeLastSet(dayExercise.id) : undefined
@@ -706,6 +719,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
               sets,
               isTime,
               suggestion,
+              ee.id,
               (index, field, value) => updateExtraSet(ee.id, index, field, value),
               (index, part, value) => updateExtraDurationPart(ee.id, index, part, value),
               sets.length > 1 ? () => removeLastExtraSet(ee.id) : undefined

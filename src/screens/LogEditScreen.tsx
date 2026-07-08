@@ -31,6 +31,7 @@ export function LogEditScreen({ route, navigation }: Props) {
   const isTime = exercise?.trackingType === 'time';
 
   const [sets, setSets] = useState<SetLog[]>(log?.sets ?? []);
+  const [rawWeightInputs, setRawWeightInputs] = useState<Record<string, string>>({});
 
   if (!log || !exercise) {
     return (
@@ -173,8 +174,18 @@ export function LogEditScreen({ route, navigation }: Props) {
                 <TextInput
                   style={[styles.input, styles.inputCol]}
                   keyboardType="decimal-pad"
-                  value={set.weight === 0 ? '' : String(set.weight)}
-                  onChangeText={(v) => updateSet(index, 'weight', v)}
+                  value={rawWeightInputs[`w-${index}`] ?? (set.weight === 0 ? '' : String(set.weight))}
+                  onChangeText={(v) => {
+                    setRawWeightInputs((prev) => ({ ...prev, [`w-${index}`]: v }));
+                    updateSet(index, 'weight', v);
+                  }}
+                  onBlur={() =>
+                    setRawWeightInputs((prev) => {
+                      const next = { ...prev };
+                      delete next[`w-${index}`];
+                      return next;
+                    })
+                  }
                   placeholderTextColor={colors.textMuted}
                 />
                 <View style={styles.removeSetBtn}>
