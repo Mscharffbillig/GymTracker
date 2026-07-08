@@ -228,7 +228,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     trackingType: TrackingType
   ): Exercise {
     const exercise: Exercise = {
-      id: generateId(),
+      id: `custom-${generateId()}`,
       name,
       category,
       muscleGroup,
