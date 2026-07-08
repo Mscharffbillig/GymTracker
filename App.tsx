@@ -3,9 +3,19 @@ import { ActivityIndicator, StatusBar, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import * as Sentry from '@sentry/react-native';
 import { AppDataProvider, useAppData } from './src/context/AppDataContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { darkColors } from './src/theme';
+
+Sentry.init({
+  // Replace with your DSN from sentry.io → Project → Settings → Client Keys
+  dsn: 'SENTRY_DSN_PLACEHOLDER',
+  // Only report in production builds, not during local dev
+  enabled: !__DEV__,
+  // Capture 20% of transactions for performance monitoring
+  tracesSampleRate: 0.2,
+});
 
 function AppContent() {
   const { loading, colors, settings } = useAppData();
@@ -38,7 +48,7 @@ function AppContent() {
   );
 }
 
-export default function App() {
+function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
@@ -49,3 +59,6 @@ export default function App() {
     </GestureHandlerRootView>
   );
 }
+
+// Sentry.wrap instruments the root component for automatic crash boundaries
+export default Sentry.wrap(App);
