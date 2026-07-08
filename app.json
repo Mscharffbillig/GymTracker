@@ -31,10 +31,11 @@
       "expo-font",
       "expo-updates",
       [
-        "@sentry/react-native",
+        "@sentry/react-native/expo",
         {
-          "organization": "SENTRY_ORG_PLACEHOLDER",
-          "project": "SENTRY_PROJECT_PLACEHOLDER"
+          "url": "https://sentry.io/",
+          "project": "react-native",
+          "organization": "norsewood-enterprises"
         }
       ]
     ]

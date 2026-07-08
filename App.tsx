@@ -9,8 +9,7 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import { darkColors } from './src/theme';
 
 Sentry.init({
-  // Replace with your DSN from sentry.io → Project → Settings → Client Keys
-  dsn: 'SENTRY_DSN_PLACEHOLDER',
+  dsn: 'https://707563a09a704d3cb86db22b46a7eed8@o4511701032108032.ingest.us.sentry.io/4511701522186240',
   // Only report in production builds, not during local dev
   enabled: !__DEV__,
   // Capture 20% of transactions for performance monitoring
