@@ -42,12 +42,23 @@ buddy's phones.
   alone rather than auto-uninstall it). Always target the emulator explicitly
   with `--device Pixel_9_Pro` or run a plain `npx expo start` (no platform
   flag) and let the already-installed dev client connect itself.
-- Release build: `cd android && ./gradlew assembleRelease` →
+- Release build: `cd android && ./gradlew assembleRelease --no-daemon` →
   `android/app/build/outputs/apk/release/app-release.apk`. Release is signed
   with the debug keystore (fine for personal sideloading, not for Play
   Store). Install via `adb install -r <path>` once a phone is connected
   (`adb devices` to check first — the user's phone connects/disconnects
   between sessions).
+- Sentry source map upload is intentionally disabled (no auth token). The user
+  environment variable `SENTRY_DISABLE_AUTO_UPLOAD=true` is permanently set on
+  Mike's machine — it prevents Sentry's Gradle task from failing the build when
+  `SENTRY_AUTH_TOKEN` is absent. Crashes still get reported; stack traces will
+  be minified. To re-enable: get a token from sentry.io/settings/auth-tokens/
+  with `project:releases` + `org:read` scopes, add `SENTRY_AUTH_TOKEN=<token>`
+  to the environment, then set `uploadSourceMaps: true` in app.json and re-run
+  prebuild.
+- If the Gradle daemon lock file is held by a stale process: find the PID from
+  the error output and `Stop-Process -Id <PID> -Force`, then delete
+  `~/.gradle/caches/journal-1/journal-1.lock`.
 - Screenshots via `adb shell screencap` then `adb pull` (don't redirect
   `screencap` stdout directly through PowerShell — it corrupts the PNG via
   UTF-16 mangling). Resize large screenshots before reading them back — this
