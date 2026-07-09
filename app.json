@@ -7,7 +7,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "updates": {
-      "url": "https://u.expo.dev/EXPO_PROJECT_ID_PLACEHOLDER"
+      "url": "https://u.expo.dev/cfd4c010-6b49-4634-ab30-c7433a510daf"
     },
     "runtimeVersion": {
       "policy": "appVersion"
@@ -39,6 +39,12 @@
           "uploadSourceMaps": false
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "cfd4c010-6b49-4634-ab30-c7433a510daf"
+      }
+    },
+    "owner": "mscharffbillig"
   }
 }
