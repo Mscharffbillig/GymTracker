@@ -406,28 +406,13 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     );
   }
 
-  function fillBodyWeight(dayExerciseId: string, isExtra: boolean) {
-    const bw = settings.bodyWeight;
-    if (!bw) return;
-    if (isExtra) {
-      setExtraSets((prev) => ({
-        ...prev,
-        [dayExerciseId]: (prev[dayExerciseId] ?? []).map((s) => ({ ...s, weight: bw })),
-      }));
-    } else {
-      setSetsByExercise((prev) => ({
-        ...prev,
-        [dayExerciseId]: (prev[dayExerciseId] ?? []).map((s) => ({ ...s, weight: bw })),
-      }));
-    }
-    setRawWeightInputs({});
-  }
 
   // ── Render helpers ───────────────────────────────────────────────────────
 
   function renderSetRows(
     sets: SetLog[],
     isTime: boolean,
+    isBodyweight: boolean,
     suggestion: ProgressSuggestion,
     keyPrefix: string,
     onUpdateSet: (index: number, field: 'reps' | 'weight', value: string) => void,
@@ -489,26 +474,32 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
             onChangeText={(v) => onUpdateSet(index, 'reps', v)}
             placeholderTextColor={colors.textMuted}
           />
-          <TextInput
-            style={[styles.input, styles.inputCol]}
-            keyboardType="decimal-pad"
-            value={rawWeightInputs[`${keyPrefix}-${index}`] ?? (set.weight === 0 ? '' : String(set.weight))}
-            onChangeText={(v) => {
-              setRawWeightInputs((prev) => ({ ...prev, [`${keyPrefix}-${index}`]: v }));
-              onUpdateSet(index, 'weight', v);
-            }}
-            onBlur={() =>
-              setRawWeightInputs((prev) => {
-                const next = { ...prev };
-                delete next[`${keyPrefix}-${index}`];
-                return next;
-              })
-            }
-            placeholder={
-              settings.overloadEnabled && suggestion.weight ? String(suggestion.weight) : ''
-            }
-            placeholderTextColor={colors.textMuted}
-          />
+          {isBodyweight ? (
+            <View style={[styles.input, styles.inputCol, styles.bwCell]}>
+              <Text style={[styles.bwCellText, { color: colors.primary }]}>BW</Text>
+            </View>
+          ) : (
+            <TextInput
+              style={[styles.input, styles.inputCol]}
+              keyboardType="decimal-pad"
+              value={rawWeightInputs[`${keyPrefix}-${index}`] ?? (set.weight === 0 ? '' : String(set.weight))}
+              onChangeText={(v) => {
+                setRawWeightInputs((prev) => ({ ...prev, [`${keyPrefix}-${index}`]: v }));
+                onUpdateSet(index, 'weight', v);
+              }}
+              onBlur={() =>
+                setRawWeightInputs((prev) => {
+                  const next = { ...prev };
+                  delete next[`${keyPrefix}-${index}`];
+                  return next;
+                })
+              }
+              placeholder={
+                settings.overloadEnabled && suggestion.weight ? String(suggestion.weight) : ''
+              }
+              placeholderTextColor={colors.textMuted}
+            />
+          )}
           <View style={styles.removeSetBtn}>
             {isLast && onRemoveLast ? (
               <Pressable onPress={onRemoveLast} hitSlop={8}>
@@ -649,21 +640,11 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
                 {settings.overloadEnabled && suggestion.message ? (
                   <Text style={styles.suggestion}>{suggestion.message}</Text>
                 ) : null}
-                {!isTime && settings.bodyWeight > 0 && (
-                  <Pressable
-                    style={styles.bwChip}
-                    onPress={() => fillBodyWeight(dayExercise.id, false)}
-                  >
-                    <Ionicons name="body-outline" size={13} color={colors.primary} />
-                    <Text style={[styles.bwChipLabel, { color: colors.primary }]}>
-                      Fill BW ({settings.bodyWeight} {settings.unit})
-                    </Text>
-                  </Pressable>
-                )}
                 {renderSetHeader(isTime)}
                 {renderSetRows(
                   sets,
                   isTime,
+                  !!exercise.isBodyweight,
                   suggestion,
                   dayExercise.id,
                   (index, field, value) => updateSet(dayExercise.id, index, field, value),
@@ -761,21 +742,11 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
             {settings.overloadEnabled && suggestion.message ? (
               <Text style={styles.suggestion}>{suggestion.message}</Text>
             ) : null}
-            {!isTime && settings.bodyWeight > 0 && (
-              <Pressable
-                style={styles.bwChip}
-                onPress={() => fillBodyWeight(ee.id, true)}
-              >
-                <Ionicons name="body-outline" size={13} color={colors.primary} />
-                <Text style={[styles.bwChipLabel, { color: colors.primary }]}>
-                  Fill BW ({settings.bodyWeight} {settings.unit})
-                </Text>
-              </Pressable>
-            )}
             {renderSetHeader(isTime)}
             {renderSetRows(
               sets,
               isTime,
+              !!exercise.isBodyweight,
               suggestion,
               ee.id,
               (index, field, value) => updateExtraSet(ee.id, index, field, value),
@@ -1128,21 +1099,14 @@ function createStyles(colors: ThemeColors) {
       fontSize: 13,
       fontWeight: '600',
     },
-    bwChip: {
-      flexDirection: 'row',
+    bwCell: {
       alignItems: 'center',
-      gap: 4,
-      marginTop: spacing.sm,
-      alignSelf: 'flex-start',
-      paddingVertical: 4,
-      paddingHorizontal: spacing.sm,
-      borderRadius: radius.sm,
-      borderWidth: 1,
-      borderColor: colors.primary,
+      justifyContent: 'center',
     },
-    bwChipLabel: {
-      fontSize: 12,
-      fontWeight: '600',
+    bwCellText: {
+      fontSize: 13,
+      fontWeight: '800',
+      letterSpacing: 0.5,
     },
     modalOverlay: {
       flex: 1,

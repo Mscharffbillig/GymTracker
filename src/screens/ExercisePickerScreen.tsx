@@ -34,6 +34,7 @@ export function ExercisePickerScreen({ route, navigation }: Props) {
   );
   const [customSecondaryGroups, setCustomSecondaryGroups] = useState<MuscleGroup[]>([]);
   const [customTrackingType, setCustomTrackingType] = useState<TrackingType>('reps');
+  const [customIsBodyweight, setCustomIsBodyweight] = useState(false);
 
   React.useLayoutEffect(() => {
     if (onPickAlternative) {
@@ -48,6 +49,7 @@ export function ExercisePickerScreen({ route, navigation }: Props) {
     setCustomMuscleGroup(CATEGORY_TO_MUSCLE_GROUPS[cat][0] ?? null);
     setCustomSecondaryGroups([]);
     setCustomTrackingType(cat === 'cardio' ? 'time' : 'reps');
+    setCustomIsBodyweight(false);
   }
 
   function toggleSecondaryGroup(mg: MuscleGroup) {
@@ -91,7 +93,8 @@ export function ExercisePickerScreen({ route, navigation }: Props) {
       customCategory,
       customMuscleGroup,
       customSecondaryGroups,
-      customTrackingType
+      customTrackingType,
+      customIsBodyweight
     );
     setCustomModalVisible(false);
     setCustomName('');
@@ -161,6 +164,11 @@ export function ExercisePickerScreen({ route, navigation }: Props) {
                 <Text style={[fontStyles.body, { color: colors.text }]}>{item.name}</Text>
                 {item.trackingType === 'time' ? (
                   <Ionicons name="time-outline" size={14} color={colors.textMuted} />
+                ) : null}
+                {item.isBodyweight ? (
+                  <View style={styles.bwBadge}>
+                    <Text style={styles.bwBadgeText}>BW</Text>
+                  </View>
                 ) : null}
               </View>
               <Text style={[fontStyles.bodyMuted, { color: colors.textMuted }]}>
@@ -277,7 +285,10 @@ export function ExercisePickerScreen({ route, navigation }: Props) {
               {(['reps', 'time'] as TrackingType[]).map((tt) => (
                 <Pressable
                   key={tt}
-                  onPress={() => setCustomTrackingType(tt)}
+                  onPress={() => {
+                    setCustomTrackingType(tt);
+                    if (tt === 'time') setCustomIsBodyweight(false);
+                  }}
                   style={[styles.chip, customTrackingType === tt && styles.chipActive]}
                 >
                   <Text
@@ -289,6 +300,30 @@ export function ExercisePickerScreen({ route, navigation }: Props) {
                 </Pressable>
               ))}
             </View>
+
+            {customTrackingType === 'reps' && (
+              <>
+                <Text style={[fontStyles.label, styles.categoryLabel, { color: colors.textMuted }]}>
+                  BODYWEIGHT EXERCISE
+                </Text>
+                <View style={styles.categoryGrid}>
+                  {([false, true] as boolean[]).map((val) => (
+                    <Pressable
+                      key={String(val)}
+                      onPress={() => setCustomIsBodyweight(val)}
+                      style={[styles.chip, customIsBodyweight === val && styles.chipActive]}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        style={[styles.chipLabel, customIsBodyweight === val && styles.chipLabelActive]}
+                      >
+                        {val ? 'Yes (BW)' : 'No'}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </>
+            )}
 
             <View style={styles.customActions}>
               <Pressable
@@ -390,6 +425,17 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.xs,
+    },
+    bwBadge: {
+      backgroundColor: colors.primary,
+      borderRadius: 4,
+      paddingHorizontal: 5,
+      paddingVertical: 1,
+    },
+    bwBadgeText: {
+      color: '#fff',
+      fontSize: 10,
+      fontWeight: '800',
     },
     customOverlay: {
       position: 'absolute',

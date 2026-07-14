@@ -37,6 +37,7 @@ export interface Exercise {
   secondaryMuscleGroups?: MuscleGroup[];
   trackingType: TrackingType;
   isCustom: boolean;
+  isBodyweight?: boolean;
 }
 
 export interface DayExercise {

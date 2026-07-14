@@ -51,7 +51,8 @@ interface AppDataContextValue {
     category: ExerciseCategory,
     muscleGroup: MuscleGroup | null,
     secondaryMuscleGroups: MuscleGroup[],
-    trackingType: TrackingType
+    trackingType: TrackingType,
+    isBodyweight?: boolean
   ) => Exercise;
   getExerciseById: (exerciseId: string) => Exercise | undefined;
 
@@ -226,7 +227,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     category: ExerciseCategory,
     muscleGroup: MuscleGroup | null,
     secondaryMuscleGroups: MuscleGroup[],
-    trackingType: TrackingType
+    trackingType: TrackingType,
+    isBodyweight?: boolean
   ): Exercise {
     const exercise: Exercise = {
       id: `custom-${generateId()}`,
@@ -236,6 +238,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       secondaryMuscleGroups,
       trackingType,
       isCustom: true,
+      isBodyweight: isBodyweight ?? false,
     };
     persistCustomExercises([...customExercises, exercise]);
     return exercise;

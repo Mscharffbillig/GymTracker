@@ -191,6 +191,18 @@ const builtIn: CatalogEntry[] = [
   ['Sled Push',       'other', null,  []],
 ];
 
+const BODYWEIGHT_NAMES = new Set([
+  'Push-Up', 'Wide Push-Up', 'Diamond Push-Up', 'Incline Push-Up',
+  'Pull-Up', 'Chin-Up', 'Inverted Row',
+  'Chest Dip', 'Tricep Dip',
+  'Walking Lunge', 'Reverse Lunge', 'Curtsy Lunge',
+  'Box Jump', 'Step-Up',
+  'Glute Bridge',
+  'Sit-Up', 'Decline Sit-Up', 'Reverse Crunch', 'Bicycle Crunch',
+  'Oblique Crunch', 'Hanging Leg Raise', 'Russian Twist', 'V-Up',
+  'Superman',
+]);
+
 export const BUILT_IN_EXERCISES: Exercise[] = builtIn.map(
   ([name, category, muscleGroup, secondaryMuscleGroups, trackingType], index) => ({
     id: `builtin-${index}`,
@@ -200,6 +212,7 @@ export const BUILT_IN_EXERCISES: Exercise[] = builtIn.map(
     secondaryMuscleGroups: secondaryMuscleGroups ?? [],
     trackingType: trackingType ?? 'reps',
     isCustom: false,
+    isBodyweight: BODYWEIGHT_NAMES.has(name),
   })
 );
 
