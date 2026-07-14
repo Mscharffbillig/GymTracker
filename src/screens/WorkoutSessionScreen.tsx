@@ -474,15 +474,10 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
             onChangeText={(v) => onUpdateSet(index, 'reps', v)}
             placeholderTextColor={colors.textMuted}
           />
-          {isBodyweight ? (
-            <View style={[styles.input, styles.inputCol, styles.bwCell]}>
-              <Text style={[styles.bwCellText, { color: colors.primary }]}>BW</Text>
-            </View>
-          ) : (
-            <TextInput
+          <TextInput
               style={[styles.input, styles.inputCol]}
               keyboardType="decimal-pad"
-              value={rawWeightInputs[`${keyPrefix}-${index}`] ?? (set.weight === 0 ? '' : String(set.weight))}
+              value={rawWeightInputs[`${keyPrefix}-${index}`] ?? (set.weight === 0 ? (isBodyweight ? '0' : '') : String(set.weight))}
               onChangeText={(v) => {
                 setRawWeightInputs((prev) => ({ ...prev, [`${keyPrefix}-${index}`]: v }));
                 onUpdateSet(index, 'weight', v);
@@ -499,7 +494,6 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
               }
               placeholderTextColor={colors.textMuted}
             />
-          )}
           <View style={styles.removeSetBtn}>
             {isLast && onRemoveLast ? (
               <Pressable onPress={onRemoveLast} hitSlop={8}>
@@ -512,7 +506,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     });
   }
 
-  function renderSetHeader(isTime: boolean) {
+  function renderSetHeader(isTime: boolean, isBodyweight: boolean) {
     return (
       <View style={styles.setHeaderRow}>
         <Text style={[fontStyles.label, styles.setCol, { color: colors.textMuted }]}>
@@ -533,7 +527,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
               REPS
             </Text>
             <Text style={[fontStyles.label, styles.inputCol, { color: colors.textMuted }]}>
-              WEIGHT ({settings.unit})
+              {isBodyweight ? `+ WEIGHT` : `WEIGHT (${settings.unit})`}
             </Text>
           </>
         )}
@@ -575,7 +569,14 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
             />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={[fontStyles.heading, { color: colors.text }]}>{exercise.name}</Text>
+            <View style={styles.cardNameRow}>
+              <Text style={[fontStyles.heading, { color: colors.text }]}>{exercise.name}</Text>
+              {exercise.isBodyweight && (
+                <View style={styles.bwBadge}>
+                  <Text style={styles.bwBadgeText}>BW</Text>
+                </View>
+              )}
+            </View>
             <Text style={[fontStyles.bodyMuted, { color: colors.textMuted }]}>
               {CATEGORY_LABELS[exercise.category]} · Target{' '}
               {isTime
@@ -640,7 +641,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
                 {settings.overloadEnabled && suggestion.message ? (
                   <Text style={styles.suggestion}>{suggestion.message}</Text>
                 ) : null}
-                {renderSetHeader(isTime)}
+                {renderSetHeader(isTime, !!exercise.isBodyweight)}
                 {renderSetRows(
                   sets,
                   isTime,
@@ -713,7 +714,14 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
             />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={[fontStyles.heading, { color: colors.text }]}>{exercise.name}</Text>
+            <View style={styles.cardNameRow}>
+              <Text style={[fontStyles.heading, { color: colors.text }]}>{exercise.name}</Text>
+              {exercise.isBodyweight && (
+                <View style={styles.bwBadge}>
+                  <Text style={styles.bwBadgeText}>BW</Text>
+                </View>
+              )}
+            </View>
             <Text style={[fontStyles.bodyMuted, { color: colors.textMuted }]}>
               {CATEGORY_LABELS[exercise.category]} · Added this session
             </Text>
@@ -742,7 +750,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
             {settings.overloadEnabled && suggestion.message ? (
               <Text style={styles.suggestion}>{suggestion.message}</Text>
             ) : null}
-            {renderSetHeader(isTime)}
+            {renderSetHeader(isTime, !!exercise.isBodyweight)}
             {renderSetRows(
               sets,
               isTime,
@@ -1099,14 +1107,22 @@ function createStyles(colors: ThemeColors) {
       fontSize: 13,
       fontWeight: '600',
     },
-    bwCell: {
+    cardNameRow: {
+      flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
+      gap: spacing.xs,
+      flexWrap: 'wrap',
     },
-    bwCellText: {
-      fontSize: 13,
+    bwBadge: {
+      backgroundColor: colors.primary,
+      borderRadius: 4,
+      paddingHorizontal: 5,
+      paddingVertical: 1,
+    },
+    bwBadgeText: {
+      color: '#fff',
+      fontSize: 10,
       fontWeight: '800',
-      letterSpacing: 0.5,
     },
     modalOverlay: {
       flex: 1,
