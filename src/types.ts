@@ -98,4 +98,5 @@ export interface Settings {
   recentDays: number;
   overloadEnabled: boolean;
   heatWarningThreshold: number;
+  bodyWeight: number;
 }

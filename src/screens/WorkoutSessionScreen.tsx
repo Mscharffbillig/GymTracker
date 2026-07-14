@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -55,6 +56,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     settings,
     saveWorkoutLog,
     getExerciseById,
+    addExerciseToDay,
     colors,
     draftWorkout,
     saveDraftWorkout,
@@ -113,6 +115,8 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
   const [collapsedCards, setCollapsedCards] = useState<Set<string>>(new Set());
   const [completedCards, setCompletedCards] = useState<Set<string>>(new Set());
   const [rawWeightInputs, setRawWeightInputs] = useState<Record<string, string>>({});
+  const [routineModalVisible, setRoutineModalVisible] = useState(false);
+  const [selectedForRoutine, setSelectedForRoutine] = useState<Set<string>>(new Set());
 
   // ── Draft auto-save ──────────────────────────────────────────────────────
 
@@ -349,6 +353,38 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     });
   }
 
+  function doFinish(addToRoutineIds: Set<string>) {
+    isDraftCleared.current = true;
+    clearDraftWorkout();
+
+    for (const ee of extraExercises) {
+      if (addToRoutineIds.has(ee.id)) {
+        addExerciseToDay(dayId, ee.exerciseId, ee.targetSets, ee.targetReps, ee.targetDurationSeconds);
+      }
+    }
+
+    const plannedEntries = day!.exercises
+      .filter((de) => !skippedExercises.has(de.id))
+      .map((de) => ({
+        exerciseId: activeExerciseIds[de.id] ?? de.exerciseId,
+        targetReps: de.targetReps,
+        targetDurationSeconds: de.targetDurationSeconds,
+        sets: setsByExercise[de.id] ?? [],
+      }));
+
+    const extraEntries = extraExercises.map((ee) => ({
+      exerciseId: ee.exerciseId,
+      targetReps: ee.targetReps,
+      targetDurationSeconds: ee.targetDurationSeconds,
+      sets: extraSets[ee.id] ?? [],
+    }));
+
+    saveWorkoutLog(dayId, [...plannedEntries, ...extraEntries]);
+    Alert.alert('Workout saved', `Nice work — ${day!.name} is logged.`, [
+      { text: 'OK', onPress: () => navigation.goBack() },
+    ]);
+  }
+
   function handleFinish() {
     Alert.alert(
       'Finish Workout?',
@@ -358,33 +394,33 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
         {
           text: 'Finish',
           onPress: () => {
-            isDraftCleared.current = true;
-            clearDraftWorkout();
-
-            const plannedEntries = day!.exercises
-              .filter((de) => !skippedExercises.has(de.id))
-              .map((de) => ({
-                exerciseId: activeExerciseIds[de.id] ?? de.exerciseId,
-                targetReps: de.targetReps,
-                targetDurationSeconds: de.targetDurationSeconds,
-                sets: setsByExercise[de.id] ?? [],
-              }));
-
-            const extraEntries = extraExercises.map((ee) => ({
-              exerciseId: ee.exerciseId,
-              targetReps: ee.targetReps,
-              targetDurationSeconds: ee.targetDurationSeconds,
-              sets: extraSets[ee.id] ?? [],
-            }));
-
-            saveWorkoutLog(dayId, [...plannedEntries, ...extraEntries]);
-            Alert.alert('Workout saved', `Nice work — ${day!.name} is logged.`, [
-              { text: 'OK', onPress: () => navigation.goBack() },
-            ]);
+            if (extraExercises.length > 0) {
+              setSelectedForRoutine(new Set(extraExercises.map((ee) => ee.id)));
+              setRoutineModalVisible(true);
+            } else {
+              doFinish(new Set());
+            }
           },
         },
       ]
     );
+  }
+
+  function fillBodyWeight(dayExerciseId: string, isExtra: boolean) {
+    const bw = settings.bodyWeight;
+    if (!bw) return;
+    if (isExtra) {
+      setExtraSets((prev) => ({
+        ...prev,
+        [dayExerciseId]: (prev[dayExerciseId] ?? []).map((s) => ({ ...s, weight: bw })),
+      }));
+    } else {
+      setSetsByExercise((prev) => ({
+        ...prev,
+        [dayExerciseId]: (prev[dayExerciseId] ?? []).map((s) => ({ ...s, weight: bw })),
+      }));
+    }
+    setRawWeightInputs({});
   }
 
   // ── Render helpers ───────────────────────────────────────────────────────
@@ -613,6 +649,17 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
                 {settings.overloadEnabled && suggestion.message ? (
                   <Text style={styles.suggestion}>{suggestion.message}</Text>
                 ) : null}
+                {!isTime && settings.bodyWeight > 0 && (
+                  <Pressable
+                    style={styles.bwChip}
+                    onPress={() => fillBodyWeight(dayExercise.id, false)}
+                  >
+                    <Ionicons name="body-outline" size={13} color={colors.primary} />
+                    <Text style={[styles.bwChipLabel, { color: colors.primary }]}>
+                      Fill BW ({settings.bodyWeight} {settings.unit})
+                    </Text>
+                  </Pressable>
+                )}
                 {renderSetHeader(isTime)}
                 {renderSetRows(
                   sets,
@@ -714,6 +761,17 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
             {settings.overloadEnabled && suggestion.message ? (
               <Text style={styles.suggestion}>{suggestion.message}</Text>
             ) : null}
+            {!isTime && settings.bodyWeight > 0 && (
+              <Pressable
+                style={styles.bwChip}
+                onPress={() => fillBodyWeight(ee.id, true)}
+              >
+                <Ionicons name="body-outline" size={13} color={colors.primary} />
+                <Text style={[styles.bwChipLabel, { color: colors.primary }]}>
+                  Fill BW ({settings.bodyWeight} {settings.unit})
+                </Text>
+              </Pressable>
+            )}
             {renderSetHeader(isTime)}
             {renderSetRows(
               sets,
@@ -750,8 +808,81 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
 
   // ── Render ───────────────────────────────────────────────────────────────
 
+  function renderRoutineModal() {
+    return (
+      <Modal
+        visible={routineModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setRoutineModalVisible(false);
+          doFinish(new Set());
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: colors.surface }]}>
+            <Text style={[fontStyles.heading, { color: colors.text, marginBottom: 4 }]}>
+              Add to Routine?
+            </Text>
+            <Text style={[fontStyles.bodyMuted, { color: colors.textMuted, marginBottom: 16 }]}>
+              Select exercises to permanently add to {day!.name}.
+            </Text>
+            {extraExercises.map((ee) => {
+              const exercise = getExerciseById(ee.exerciseId);
+              if (!exercise) return null;
+              const checked = selectedForRoutine.has(ee.id);
+              return (
+                <Pressable
+                  key={ee.id}
+                  style={styles.modalRow}
+                  onPress={() => {
+                    setSelectedForRoutine((prev) => {
+                      const next = new Set(prev);
+                      checked ? next.delete(ee.id) : next.add(ee.id);
+                      return next;
+                    });
+                  }}
+                >
+                  <Ionicons
+                    name={checked ? 'checkbox' : 'square-outline'}
+                    size={22}
+                    color={checked ? colors.primary : colors.textMuted}
+                  />
+                  <Text style={[fontStyles.body, { color: colors.text, flex: 1, marginLeft: 10 }]}>
+                    {exercise.name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+            <View style={styles.modalActions}>
+              <Pressable
+                style={[styles.modalBtn, { borderColor: colors.border }]}
+                onPress={() => {
+                  setRoutineModalVisible(false);
+                  doFinish(new Set());
+                }}
+              >
+                <Text style={[styles.modalBtnLabel, { color: colors.textMuted }]}>Skip</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalBtn, styles.modalBtnPrimary, { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                onPress={() => {
+                  setRoutineModalVisible(false);
+                  doFinish(selectedForRoutine);
+                }}
+              >
+                <Text style={[styles.modalBtnLabel, { color: '#fff' }]}>Add to Routine</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
   return (
     <ScreenContainer style={styles.container}>
+      {renderRoutineModal()}
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -996,6 +1127,56 @@ function createStyles(colors: ThemeColors) {
     addSetLabel: {
       fontSize: 13,
       fontWeight: '600',
+    },
+    bwChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: spacing.sm,
+      alignSelf: 'flex-start',
+      paddingVertical: 4,
+      paddingHorizontal: spacing.sm,
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+    bwChipLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: spacing.lg,
+    },
+    modalCard: {
+      width: '100%',
+      borderRadius: radius.md,
+      padding: spacing.lg,
+    },
+    modalRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+    },
+    modalActions: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      marginTop: spacing.lg,
+    },
+    modalBtn: {
+      flex: 1,
+      paddingVertical: spacing.md,
+      borderRadius: radius.md,
+      alignItems: 'center',
+      borderWidth: 1,
+    },
+    modalBtnPrimary: {},
+    modalBtnLabel: {
+      fontWeight: '700',
+      fontSize: 14,
     },
     addExerciseBtn: {
       flexDirection: 'row',

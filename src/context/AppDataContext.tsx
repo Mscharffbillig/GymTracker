@@ -85,6 +85,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     recentDays: 6,
     overloadEnabled: true,
     heatWarningThreshold: 7,
+    bodyWeight: 0,
   });
   const [draftWorkout, setDraftWorkout] = useState<DraftWorkout | null>(null);
   const colors = settings.theme === 'dark' ? darkColors : lightColors;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { useAppData } from '../context/AppDataContext';
 import { fontStyles, radius, spacing, ThemeColors } from '../theme';
@@ -69,6 +69,24 @@ export function SettingsScreen() {
           </Pressable>
         ))}
       </View>
+
+      <Text style={[fontStyles.label, styles.sectionSpacing, { color: colors.textMuted }]}>
+        BODY WEIGHT ({settings.unit.toUpperCase()})
+      </Text>
+      <TextInput
+        style={[styles.bodyWeightInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
+        keyboardType="decimal-pad"
+        value={settings.bodyWeight === 0 ? '' : String(settings.bodyWeight)}
+        onChangeText={(v) => {
+          const n = parseFloat(v);
+          updateSettings({ ...settings, bodyWeight: isNaN(n) ? 0 : n });
+        }}
+        placeholder={`Enter your body weight in ${settings.unit}`}
+        placeholderTextColor={colors.textMuted}
+      />
+      <Text style={[fontStyles.bodyMuted, styles.helperText, { color: colors.textMuted }]}>
+        Lets you fill weight fields on bodyweight exercises (lunges, etc.) with one tap during a session.
+      </Text>
 
       <Text style={[fontStyles.label, styles.sectionSpacing, { color: colors.textMuted }]}>
         MUSCLE MAP — FRESH WITHIN (DAYS)
@@ -223,6 +241,14 @@ function createStyles(colors: ThemeColors) {
     },
     optionLabelActive: {
       color: '#FFFFFF',
+    },
+    bodyWeightInput: {
+      marginTop: spacing.sm,
+      borderWidth: 1,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      fontSize: 16,
     },
     helperText: {
       marginTop: spacing.sm,
