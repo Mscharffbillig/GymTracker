@@ -18,7 +18,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundColor": "#FFFFFF"
+        "backgroundColor": "#0D0D0D"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.GymTracker",
