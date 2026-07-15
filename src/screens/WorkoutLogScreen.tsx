@@ -114,7 +114,12 @@ export function WorkoutLogScreen({ navigation }: Props) {
 
   return (
     <ScreenContainer style={styles.container} edges={['top', 'bottom']}>
-      <Text style={[fontStyles.title, styles.header, { color: colors.text }]}>Workout Log</Text>
+      <View style={styles.headerRow}>
+        <Text style={[fontStyles.title, { color: colors.text }]}>Workout Log</Text>
+        <Pressable onPress={() => navigation.navigate('Stats')} hitSlop={8} style={styles.statsBtn}>
+          <Ionicons name="bar-chart-outline" size={24} color={colors.primary} />
+        </Pressable>
+      </View>
       <FlatList
         data={sessions}
         keyExtractor={(s) => s.key}
@@ -136,9 +141,15 @@ function createStyles(colors: ThemeColors) {
     container: {
       paddingTop: spacing.lg,
     },
-    header: {
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
       paddingHorizontal: spacing.lg,
       marginBottom: spacing.md,
+    },
+    statsBtn: {
+      padding: spacing.xs,
     },
     listContent: {
       paddingHorizontal: spacing.lg,
