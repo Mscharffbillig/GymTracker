@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../components/ScreenContainer';
@@ -8,6 +8,7 @@ import { useAppData } from '../context/AppDataContext';
 import { formatDuration } from '../utils/duration';
 import { fontStyles, radius, spacing, ThemeColors } from '../theme';
 import { ExerciseLog } from '../types';
+import { trackExerciseHistoryViewed } from '../analytics/events';
 
 interface Props {
   navigation: { setOptions: (options: { title?: string }) => void };
@@ -21,6 +22,8 @@ export function ExerciseHistoryScreen({ route, navigation }: Props) {
   const exercise = getExerciseById(exerciseId);
   const exerciseLogs = getLogsForExercise(exerciseId);
   const isTime = exercise?.trackingType === 'time';
+
+  useEffect(() => { trackExerciseHistoryViewed(); }, []);
 
   React.useLayoutEffect(() => {
     navigation.setOptions({ title: exercise?.name ?? 'History' });

@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { useAppData } from '../context/AppDataContext';
 import { fontStyles, radius, spacing, ThemeColors } from '../theme';
 import { ExerciseLog } from '../types';
+import { trackStatisticsViewed } from '../analytics/events';
 
 type Period = 'week' | 'month' | 'year' | 'all';
 
@@ -156,6 +157,8 @@ export function StatsScreen() {
   const { logs, exercises, settings, colors } = useAppData();
   const styles = createStyles(colors);
   const [period, setPeriod] = useState<Period>('year');
+
+  useEffect(() => { trackStatisticsViewed(); }, []);
 
   const filtered = useMemo<ExerciseLog[]>(() => {
     const start = getPeriodStart(period);

@@ -24,6 +24,7 @@ import { generateId } from '../utils/id';
 import { fontStyles, radius, spacing, ThemeColors } from '../theme';
 import { ProgramStackParamList } from '../navigation/types';
 import { DayExercise, DraftWorkout, ExtraSessionExercise, ExerciseLog, SetLog } from '../types';
+import { trackWorkoutStarted, trackExerciseAddedToWorkout, trackProgressionSuggestionShown } from '../analytics/events';
 
 type Props = NativeStackScreenProps<ProgramStackParamList, 'WorkoutSession'>;
 
@@ -113,10 +114,20 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
 
   const [showResumeBanner, setShowResumeBanner] = useState(hasDraft);
   const [collapsedCards, setCollapsedCards] = useState<Set<string>>(new Set());
+  const suggestionShownRef = useRef<Set<string>>(new Set());
   const [completedCards, setCompletedCards] = useState<Set<string>>(new Set());
   const [rawWeightInputs, setRawWeightInputs] = useState<Record<string, string>>({});
   const [routineModalVisible, setRoutineModalVisible] = useState(false);
   const [selectedForRoutine, setSelectedForRoutine] = useState<Set<string>>(new Set());
+
+  // ── Analytics: fire workout_started once, only when not resuming a draft ─
+
+  useEffect(() => {
+    if (!hasDraft && day) {
+      trackWorkoutStarted(day.exercises.length);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Draft auto-save ──────────────────────────────────────────────────────
 
@@ -349,6 +360,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
             durationSeconds: prevDur,
           })),
         }));
+        trackExerciseAddedToWorkout();
       },
     });
   }
@@ -639,7 +651,14 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
             ) : (
               <>
                 {settings.overloadEnabled && suggestion.message ? (
-                  <Text style={styles.suggestion}>{suggestion.message}</Text>
+                  <>
+                    {!suggestionShownRef.current.has(dayExercise.id) && (() => {
+                      suggestionShownRef.current.add(dayExercise.id);
+                      trackProgressionSuggestionShown();
+                      return null;
+                    })()}
+                    <Text style={styles.suggestion}>{suggestion.message}</Text>
+                  </>
                 ) : null}
                 {renderSetHeader(isTime, !!exercise.isBodyweight)}
                 {renderSetRows(

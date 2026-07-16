@@ -1,15 +1,20 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { useAppData } from '../context/AppDataContext';
 import { fontStyles, radius, spacing, ThemeColors } from '../theme';
 import { ThemeMode, WeightUnit } from '../types';
+import { SettingsStackParamList } from '../navigation/types';
 
 const FRESH_OPTIONS = [1, 2, 3, 5];
 const RECENT_OPTIONS = [4, 6, 8, 10, 14];
 const HEAT_WARNING_OPTIONS = [5, 6, 7, 8, 10];
 
-export function SettingsScreen() {
+type Props = NativeStackScreenProps<SettingsStackParamList, 'Settings'>;
+
+export function SettingsScreen({ navigation }: Props) {
   const { settings, updateSettings, colors } = useAppData();
   const styles = createStyles(colors);
 
@@ -176,6 +181,51 @@ export function SettingsScreen() {
         At this threshold the muscle shows a recovery warning on the body map.
       </Text>
 
+      {/* ── Analytics consent ───────────────────────────────── */}
+      <Text style={[fontStyles.label, styles.sectionSpacing, { color: colors.textMuted }]}>
+        PRIVACY
+      </Text>
+
+      <View style={[styles.toggleRow, { backgroundColor: colors.surface }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[fontStyles.body, { color: colors.text }]}>
+            Anonymous usage analytics
+          </Text>
+          <Text style={[fontStyles.bodyMuted, styles.helperText, { color: colors.textMuted }]}>
+            Share anonymous information about which features are used and how the app performs.
+            Workout details, exercise names, weights, repetitions, notes, and personal information
+            are never included.
+          </Text>
+        </View>
+        <Switch
+          value={settings.analyticsEnabled === true}
+          onValueChange={(val) => updateSettings({ ...settings, analyticsEnabled: val })}
+          trackColor={{ false: colors.border, true: colors.primary }}
+          thumbColor="#FFFFFF"
+          accessibilityLabel="Anonymous usage analytics"
+          accessibilityRole="switch"
+          accessibilityState={{ checked: settings.analyticsEnabled === true }}
+        />
+      </View>
+
+      {/* ── Send feedback ───────────────────────────────────── */}
+      <Text style={[fontStyles.label, styles.sectionSpacing, { color: colors.textMuted }]}>
+        SUPPORT
+      </Text>
+
+      <Pressable
+        style={[styles.feedbackRow, { backgroundColor: colors.surface }]}
+        onPress={() => navigation.navigate('Feedback')}
+        accessibilityRole="button"
+        accessibilityLabel="Send feedback"
+      >
+        <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.primary} />
+        <Text style={[fontStyles.body, styles.feedbackLabel, { color: colors.text }]}>
+          Send feedback
+        </Text>
+        <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+      </Pressable>
+
       <Text style={[fontStyles.bodyMuted, styles.footnote, { color: colors.textMuted }]}>
         All workout data stays on this device. There is no account, sync, or internet
         connection — uninstalling the app deletes your data.
@@ -253,6 +303,25 @@ function createStyles(colors: ThemeColors) {
     helperText: {
       marginTop: spacing.sm,
       lineHeight: 18,
+    },
+    toggleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: spacing.sm,
+      padding: spacing.md,
+      borderRadius: radius.md,
+      gap: spacing.md,
+    },
+    feedbackRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: spacing.sm,
+      padding: spacing.md,
+      borderRadius: radius.md,
+      gap: spacing.md,
+    },
+    feedbackLabel: {
+      flex: 1,
     },
     footnote: {
       marginTop: spacing.xl,

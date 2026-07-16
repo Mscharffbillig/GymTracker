@@ -19,6 +19,7 @@ export type ProgressStackParamList = {
 
 export type SettingsStackParamList = {
   Settings: undefined;
+  Feedback: undefined;
 };
 
 export type BodyStackParamList = {

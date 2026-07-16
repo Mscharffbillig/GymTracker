@@ -20,6 +20,7 @@ import { StatsScreen } from '../screens/StatsScreen';
 import { LogEditScreen } from '../screens/LogEditScreen';
 import { BodyMapScreen } from '../screens/BodyMapScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
+import { FeedbackScreen } from '../screens/FeedbackScreen';
 
 const ProgramStack = createNativeStackNavigator<ProgramStackParamList>();
 const ProgressStack = createNativeStackNavigator<ProgressStackParamList>();
@@ -126,6 +127,11 @@ function SettingsStackNavigator() {
       }}
     >
       <SettingsStack.Screen name="Settings" component={SettingsScreen} />
+      <SettingsStack.Screen
+        name="Feedback"
+        component={FeedbackScreen}
+        options={{ title: 'Send Feedback' }}
+      />
     </SettingsStack.Navigator>
   );
 }

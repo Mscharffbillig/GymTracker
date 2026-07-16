@@ -3,6 +3,8 @@ import { storage } from '../data/storage';
 import { BUILT_IN_EXERCISES } from '../data/exerciseCatalog';
 import { generateId } from '../utils/id';
 import { darkColors, lightColors, ThemeColors } from '../theme';
+import { analytics } from '../analytics/AnalyticsService';
+import { trackProgramCreated, trackWorkoutCompleted, trackSetLogged } from '../analytics/events';
 import {
   Day,
   DayExercise,
@@ -106,6 +108,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       setSettings(loadedSettings);
       setDraftWorkout(loadedDraft);
       setLoading(false);
+      // Initialize analytics with the stored consent preference.
+      // undefined means the consent modal hasn't been shown yet — treat as no consent.
+      await analytics.initialize(loadedSettings.analyticsEnabled === true);
     })();
   }, []);
 
@@ -132,6 +137,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   function addDay(name: string): Day {
     const day: Day = { id: generateId(), name, order: days.length, exercises: [] };
     persistDays([...days, day]);
+    trackProgramCreated();
     return day;
   }
 
@@ -270,6 +276,11 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         sets: entry.sets,
       }));
     persistLogs([...logs, ...newLogs]);
+
+    // Analytics: count-only, no exercise names or weights
+    const totalSets = newLogs.reduce((n, l) => n + l.sets.length, 0);
+    trackWorkoutCompleted(newLogs.length, totalSets, 0); // duration tracked in WorkoutSessionScreen
+    if (totalSets > 0) trackSetLogged(totalSets);
   }
 
   function getLogsForExercise(exerciseId: string): ExerciseLog[] {
@@ -316,6 +327,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   function updateSettings(next: Settings) {
     setSettings(next);
     storage.saveSettings(next);
+    // Sync analytics consent whenever the setting changes
+    if (next.analyticsEnabled !== settings.analyticsEnabled) {
+      void analytics.setConsent(next.analyticsEnabled === true);
+    }
   }
 
   const value: AppDataContextValue = {

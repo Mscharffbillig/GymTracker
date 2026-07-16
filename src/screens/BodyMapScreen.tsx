@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Body, { ExtendedBodyPart, Slug } from 'react-native-body-highlighter';
@@ -16,6 +16,7 @@ import {
 } from '../data/bodySlugMap';
 import { MUSCLE_GROUP_LABELS } from '../data/exerciseCatalog';
 import { fontStyles, radius, spacing, ThemeColors } from '../theme';
+import { trackMuscleHeatmapViewed } from '../analytics/events';
 
 type BodyView = 'front' | 'back';
 
@@ -32,6 +33,8 @@ export function BodyMapScreen() {
   const [view, setView] = useState<BodyView>('front');
   const [mode, setMode] = useState<BodyMapMode>('completed');
   const [selectedSlug, setSelectedSlug] = useState<Slug | null>(null);
+
+  useEffect(() => { trackMuscleHeatmapViewed(); }, []);
 
   const statuses = useMemo(
     () =>

@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Sentry from '@sentry/react-native';
 import { AppDataProvider, useAppData } from './src/context/AppDataContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { ConsentModal } from './src/components/ConsentModal';
 import { darkColors } from './src/theme';
 
 Sentry.init({
@@ -17,7 +18,7 @@ Sentry.init({
 });
 
 function AppContent() {
-  const { loading, colors, settings } = useAppData();
+  const { loading, colors, settings, updateSettings } = useAppData();
 
   if (loading) {
     return (
@@ -43,6 +44,11 @@ function AppContent() {
       <NavigationContainer>
         <RootNavigator />
       </NavigationContainer>
+      <ConsentModal
+        visible={settings.analyticsEnabled === undefined}
+        onAllow={() => updateSettings({ ...settings, analyticsEnabled: true })}
+        onDecline={() => updateSettings({ ...settings, analyticsEnabled: false })}
+      />
     </>
   );
 }

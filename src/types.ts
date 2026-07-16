@@ -100,4 +100,6 @@ export interface Settings {
   overloadEnabled: boolean;
   heatWarningThreshold: number;
   bodyWeight: number;
+  // undefined = not yet asked (consent modal will appear)
+  analyticsEnabled?: boolean;
 }
