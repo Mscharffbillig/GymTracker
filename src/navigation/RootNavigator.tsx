@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppData } from '../context/AppDataContext';
 import {
   BodyStackParamList,
+  ProfileStackParamList,
   ProgramStackParamList,
   ProgressStackParamList,
   RootTabParamList,
@@ -20,11 +21,13 @@ import { StatsScreen } from '../screens/StatsScreen';
 import { LogEditScreen } from '../screens/LogEditScreen';
 import { BodyMapScreen } from '../screens/BodyMapScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
+import { ProfileScreen } from '../screens/ProfileScreen';
 import { FeedbackScreen } from '../screens/FeedbackScreen';
 
 const ProgramStack = createNativeStackNavigator<ProgramStackParamList>();
 const ProgressStack = createNativeStackNavigator<ProgressStackParamList>();
 const BodyStack = createNativeStackNavigator<BodyStackParamList>();
+const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
 const SettingsStack = createNativeStackNavigator<SettingsStackParamList>();
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
@@ -49,7 +52,7 @@ function ProgramStackNavigator() {
       <ProgramStack.Screen
         name="WorkoutSession"
         component={WorkoutSessionScreen}
-        options={{ title: 'Log Workout' }}
+        options={{ title: 'Log Routine' }}
       />
       <ProgramStack.Screen
         name="ExerciseHistory"
@@ -75,11 +78,6 @@ function ProgressStackNavigator() {
         name="WorkoutLog"
         component={WorkoutLogScreen}
         options={{ headerShown: false }}
-      />
-      <ProgressStack.Screen
-        name="Stats"
-        component={StatsScreen}
-        options={{ title: 'Statistics', headerShown: false }}
       />
       <ProgressStack.Screen
         name="ExerciseHistory"
@@ -112,6 +110,31 @@ function BodyStackNavigator() {
         options={{ headerShown: false }}
       />
     </BodyStack.Navigator>
+  );
+}
+
+function ProfileStackNavigator() {
+  const { colors } = useAppData();
+  return (
+    <ProfileStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.text,
+        headerTitleStyle: { fontWeight: '700' },
+        contentStyle: { backgroundColor: colors.background },
+      }}
+    >
+      <ProfileStack.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen
+        name="Stats"
+        component={StatsScreen}
+        options={{ title: 'Statistics', headerShown: false }}
+      />
+    </ProfileStack.Navigator>
   );
 }
 
@@ -171,6 +194,14 @@ export function RootNavigator() {
         options={{
           title: 'Body',
           tabBarIcon: ({ color, size }) => <Ionicons name="body-outline" size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="ProfileTab"
+        component={ProfileStackNavigator}
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" size={size} color={color} />,
         }}
       />
       <Tab.Screen

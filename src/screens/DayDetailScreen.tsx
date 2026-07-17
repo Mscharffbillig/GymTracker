@@ -229,7 +229,7 @@ export function DayDetailScreen({ route, navigation }: Props) {
         ListEmptyComponent={
           <EmptyState
             title="No exercises yet"
-            subtitle="Add exercises to build out this day's workout."
+            subtitle="Add exercises to build out this day's routine."
           />
         }
         renderItem={({ item, index }) => (
@@ -263,7 +263,7 @@ export function DayDetailScreen({ route, navigation }: Props) {
           style={styles.footerBtn}
         />
         <Button
-          label="Start Workout"
+          label="Start Routine"
           onPress={() => navigation.navigate('WorkoutSession', { dayId })}
           disabled={day.exercises.length === 0}
           style={styles.footerBtn}

@@ -24,7 +24,7 @@ import { generateId } from '../utils/id';
 import { fontStyles, radius, spacing, ThemeColors } from '../theme';
 import { ProgramStackParamList } from '../navigation/types';
 import { DayExercise, DraftWorkout, ExtraSessionExercise, ExerciseLog, SetLog } from '../types';
-import { trackWorkoutStarted, trackExerciseAddedToWorkout, trackProgressionSuggestionShown } from '../analytics/events';
+import { trackWorkoutStarted, trackWorkoutAbandoned, trackExerciseAddedToWorkout, trackProgressionSuggestionShown } from '../analytics/events';
 
 type Props = NativeStackScreenProps<ProgramStackParamList, 'WorkoutSession'>;
 
@@ -71,7 +71,26 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
   // ── State — initialised from draft if resuming, otherwise fresh ──────────
 
   const [setsByExercise, setSetsByExercise] = useState<Record<string, SetLog[]>>(() => {
-    if (hasDraft) return draftWorkout!.setsByExercise;
+    if (hasDraft) {
+      // Fill in any exercises added to the day after the draft was created
+      const init = { ...draftWorkout!.setsByExercise };
+      if (day) {
+        for (const de of day.exercises) {
+          if (!(de.id in init)) {
+            const ex = exercises.find((e) => e.id === de.exerciseId);
+            const isTime = ex?.trackingType === 'time';
+            const prevWeight = isTime ? 0 : lastTopWeight(de.exerciseId, logs);
+            const prevDur = isTime ? lastTopDuration(de.exerciseId, logs) || de.targetDurationSeconds : 0;
+            init[de.id] = Array.from({ length: de.targetSets }, () => ({
+              reps: isTime ? 0 : de.targetReps,
+              weight: prevWeight,
+              durationSeconds: prevDur,
+            }));
+          }
+        }
+      }
+      return init;
+    }
     if (!day) return {};
     const init: Record<string, SetLog[]> = {};
     for (const de of day.exercises) {
@@ -93,7 +112,15 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
   );
 
   const [activeExerciseIds, setActiveExerciseIds] = useState<Record<string, string>>(() => {
-    if (hasDraft) return draftWorkout!.activeExerciseIds;
+    if (hasDraft) {
+      const init = { ...draftWorkout!.activeExerciseIds };
+      if (day) {
+        for (const de of day.exercises) {
+          if (!(de.id in init)) init[de.id] = de.exerciseId;
+        }
+      }
+      return init;
+    }
     if (!day) return {};
     const init: Record<string, string> = {};
     for (const de of day.exercises) init[de.id] = de.exerciseId;
@@ -113,9 +140,15 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
   );
 
   const [showResumeBanner, setShowResumeBanner] = useState(hasDraft);
-  const [collapsedCards, setCollapsedCards] = useState<Set<string>>(new Set());
+  const [collapsedCards, setCollapsedCards] = useState<Set<string>>(() =>
+    hasDraft && draftWorkout!.collapsedCards ? new Set(draftWorkout!.collapsedCards) : new Set()
+  );
   const suggestionShownRef = useRef<Set<string>>(new Set());
-  const [completedCards, setCompletedCards] = useState<Set<string>>(new Set());
+  const didFinishRef = useRef(false);
+  const allDonePromptShownRef = useRef(false);
+  const [completedCards, setCompletedCards] = useState<Set<string>>(() =>
+    hasDraft && draftWorkout!.completedCards ? new Set(draftWorkout!.completedCards) : new Set()
+  );
   const [rawWeightInputs, setRawWeightInputs] = useState<Record<string, string>>({});
   const [routineModalVisible, setRoutineModalVisible] = useState(false);
   const [selectedForRoutine, setSelectedForRoutine] = useState<Set<string>>(new Set());
@@ -128,6 +161,45 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── Analytics: fire workout_abandoned when user leaves without finishing ──
+
+  useEffect(() => {
+    return navigation.addListener('beforeRemove', () => {
+      if (!didFinishRef.current) {
+        trackWorkoutAbandoned();
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigation]);
+
+  // ── All-done prompt ──────────────────────────────────────────────────────
+
+  // Reset the guard when the total exercise count changes (user added one)
+  useEffect(() => {
+    allDonePromptShownRef.current = false;
+  }, [day?.exercises.length, extraExercises.length]);
+
+  useEffect(() => {
+    if (allDonePromptShownRef.current || routineModalVisible || !day) return;
+    const allIds = [
+      ...day.exercises.map((de) => de.id),
+      ...extraExercises.map((ee) => ee.id),
+    ];
+    if (allIds.length === 0) return;
+    if (!allIds.every((id) => completedCards.has(id) || skippedExercises.has(id))) return;
+    allDonePromptShownRef.current = true;
+    Alert.alert(
+      'All done!',
+      'Every exercise is checked off. Add more or finish?',
+      [
+        { text: 'Keep Going', style: 'cancel' },
+        { text: 'Add Exercise', onPress: handleAddExercise },
+        { text: 'Finish Routine', onPress: handleFinish },
+      ]
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completedCards, skippedExercises, extraExercises, routineModalVisible]);
 
   // ── Draft auto-save ──────────────────────────────────────────────────────
 
@@ -148,9 +220,11 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
       activeExerciseIds,
       extraExercises,
       extraSets,
+      completedCards: [...completedCards],
+      collapsedCards: [...collapsedCards],
     };
     saveDraftWorkout(draft);
-  }, [setsByExercise, skippedExercises, activeExerciseIds, extraExercises, extraSets]);
+  }, [setsByExercise, skippedExercises, activeExerciseIds, extraExercises, extraSets, completedCards, collapsedCards]);
 
   if (!day) {
     return (
@@ -186,6 +260,8 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     setActiveExerciseIds(freshActiveIds);
     setExtraExercises([]);
     setExtraSets({});
+    setCompletedCards(new Set());
+    setCollapsedCards(new Set());
     isDraftCleared.current = false;
   }
 
@@ -366,6 +442,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
   }
 
   function doFinish(addToRoutineIds: Set<string>) {
+    didFinishRef.current = true;
     isDraftCleared.current = true;
     clearDraftWorkout();
 
@@ -392,14 +469,14 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     }));
 
     saveWorkoutLog(dayId, [...plannedEntries, ...extraEntries]);
-    Alert.alert('Workout saved', `Nice work — ${day!.name} is logged.`, [
+    Alert.alert('Routine logged', `Nice work — ${day!.name} is done.`, [
       { text: 'OK', onPress: () => navigation.goBack() },
     ]);
   }
 
   function handleFinish() {
     Alert.alert(
-      'Finish Workout?',
+      'Finish Routine?',
       'Save your session and return to the program.',
       [
         { text: 'Keep Going', style: 'cancel' },
@@ -912,7 +989,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
         </ScrollView>
 
         <View style={styles.footer}>
-          <Button label="Finish Workout" onPress={handleFinish} />
+          <Button label="Finish Routine" onPress={handleFinish} />
         </View>
       </KeyboardAvoidingView>
     </ScreenContainer>

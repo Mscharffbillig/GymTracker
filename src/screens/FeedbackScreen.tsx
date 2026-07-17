@@ -27,6 +27,7 @@ const MAX_MESSAGE_LENGTH = 2000;
 const SUBMIT_COOLDOWN_MS = 30_000;
 
 const FEEDBACK_URL = (process.env.EXPO_PUBLIC_FEEDBACK_URL ?? '').trim();
+const FEEDBACK_UNAVAILABLE = !FEEDBACK_URL && !__DEV__;
 const feedbackService: IFeedbackService = FEEDBACK_URL
   ? new HttpFeedbackService(FEEDBACK_URL)
   : new MockFeedbackService();
@@ -120,7 +121,7 @@ export function FeedbackScreen({ navigation }: Props) {
     try {
       // Installation ID is only included when the user has consented to analytics
       let resolvedInstallId: string | undefined;
-      if (settings.analyticsEnabled === true) {
+      if (settings.analyticsEnabled === 'allowed') {
         try { resolvedInstallId = await getInstallationId(); } catch { /* ignore */ }
       }
 
@@ -154,6 +155,28 @@ export function FeedbackScreen({ navigation }: Props) {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (FEEDBACK_UNAVAILABLE) {
+    return (
+      <ScreenContainer style={styles.container} edges={['bottom']}>
+        <View style={styles.successContainer}>
+          <Ionicons name="construct-outline" size={64} color={colors.textMuted} />
+          <Text style={[fontStyles.heading, styles.successTitle, { color: colors.text }]}>
+            Feedback temporarily unavailable
+          </Text>
+          <Text style={[fontStyles.body, styles.successBody, { color: colors.textMuted }]}>
+            The feedback endpoint has not been set up yet. Check back in a future update.
+          </Text>
+          <Pressable
+            style={[styles.submitBtn, { backgroundColor: colors.primary }]}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.submitBtnLabel}>Go Back</Text>
+          </Pressable>
+        </View>
+      </ScreenContainer>
+    );
   }
 
   if (success) {
@@ -310,7 +333,7 @@ export function FeedbackScreen({ navigation }: Props) {
               </Text>
               <Text style={[fontStyles.bodyMuted, { color: colors.textMuted, marginTop: 2 }]}>
                 App version, Android version, device model, and a timestamp.
-                {settings.analyticsEnabled === true
+                {settings.analyticsEnabled === 'allowed'
                   ? ' Your anonymous installation ID will also be included.'
                   : ''}
                 {' '}Workout history is never included.

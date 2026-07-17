@@ -88,18 +88,27 @@ export interface DraftWorkout {
   activeExerciseIds: Record<string, string>;
   extraExercises: ExtraSessionExercise[];
   extraSets: Record<string, SetLog[]>;
+  completedCards?: string[];
+  collapsedCards?: string[];
 }
 
 export type ThemeMode = 'light' | 'dark';
 
+export type Gender = 'male' | 'female';
+
+export type BodyMapStyle = 'simple' | 'heatmap';
+
+export type ConsentState = 'undecided' | 'allowed' | 'declined';
+
 export interface Settings {
   unit: WeightUnit;
   theme: ThemeMode;
-  freshDays: number;
-  recentDays: number;
+  gender: Gender;
+  bodyMapStyle: BodyMapStyle;
   overloadEnabled: boolean;
   heatWarningThreshold: number;
+  heatCooldownPerDay: number;
   bodyWeight: number;
-  // undefined = not yet asked (consent modal will appear)
-  analyticsEnabled?: boolean;
+  analyticsEnabled: ConsentState;
+  diagnosticsEnabled: ConsentState;
 }

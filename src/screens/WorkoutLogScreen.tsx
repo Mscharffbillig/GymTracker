@@ -24,7 +24,7 @@ export function WorkoutLogScreen({ navigation }: Props) {
   const styles = createStyles(colors);
 
   function confirmDelete(entry: ExerciseLog, exerciseName: string) {
-    Alert.alert('Delete entry?', `Remove ${exerciseName} from this workout log.`, [
+    Alert.alert('Delete entry?', `Remove ${exerciseName} from this routine log.`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: () => deleteLog(entry.id) },
     ]);
@@ -34,7 +34,7 @@ export function WorkoutLogScreen({ navigation }: Props) {
     const byKey = new Map<string, Session>();
     for (const log of logs) {
       const key = `${log.date}|${log.dayId}`;
-      const dayName = days.find((d) => d.id === log.dayId)?.name ?? 'Workout';
+      const dayName = days.find((d) => d.id === log.dayId)?.name ?? 'Routine';
       const existing = byKey.get(key);
       if (existing) {
         existing.entries.push(log);
@@ -115,10 +115,7 @@ export function WorkoutLogScreen({ navigation }: Props) {
   return (
     <ScreenContainer style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.headerRow}>
-        <Text style={[fontStyles.title, { color: colors.text }]}>Workout Log</Text>
-        <Pressable onPress={() => navigation.navigate('Stats')} hitSlop={8} style={styles.statsBtn}>
-          <Ionicons name="bar-chart-outline" size={24} color={colors.primary} />
-        </Pressable>
+        <Text style={[fontStyles.title, { color: colors.text }]}>Routine Log</Text>
       </View>
       <FlatList
         data={sessions}
@@ -127,8 +124,8 @@ export function WorkoutLogScreen({ navigation }: Props) {
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <EmptyState
-            title="No workouts logged yet"
-            subtitle="Finish a workout from the Program tab and it will show up here."
+            title="No sessions logged yet"
+            subtitle="Finish a routine from the Program tab and it will show up here."
           />
         }
       />
@@ -142,14 +139,8 @@ function createStyles(colors: ThemeColors) {
       paddingTop: spacing.lg,
     },
     headerRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
       paddingHorizontal: spacing.lg,
       marginBottom: spacing.md,
-    },
-    statsBtn: {
-      padding: spacing.xs,
     },
     listContent: {
       paddingHorizontal: spacing.lg,

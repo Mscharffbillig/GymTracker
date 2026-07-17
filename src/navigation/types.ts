@@ -12,9 +12,13 @@ export type ProgramStackParamList = {
 
 export type ProgressStackParamList = {
   WorkoutLog: undefined;
-  Stats: undefined;
   ExerciseHistory: { exerciseId: string };
   LogEdit: { logId: string };
+};
+
+export type ProfileStackParamList = {
+  Profile: undefined;
+  Stats: undefined;
 };
 
 export type SettingsStackParamList = {
@@ -30,5 +34,6 @@ export type RootTabParamList = {
   ProgramTab: undefined;
   ProgressTab: undefined;
   BodyTab: undefined;
+  ProfileTab: undefined;
   SettingsTab: undefined;
 };

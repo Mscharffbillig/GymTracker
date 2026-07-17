@@ -41,7 +41,7 @@ function getMuscleGroupStatus(
   exercises: Exercise[],
   days: Day[],
   unit: WeightUnit,
-  recentDays: number,
+  heatCooldownPerDay: number,
   heatWarningThreshold: number
 ): MuscleGroupStatus {
   const exerciseNamesInProgram = Array.from(
@@ -63,17 +63,9 @@ function getMuscleGroupStatus(
   let totalHeat = 0;
   let lastTrainedDaysAgo: number | null = null;
 
-  const relevantLogs = logs.filter((log) => {
-    const daysAgo = (now - new Date(log.date).getTime()) / 86400000;
-    return daysAgo <= recentDays;
-  });
-
-  for (const log of relevantLogs) {
+  for (const log of logs) {
     const exercise = exercises.find((e) => e.id === log.exerciseId);
     if (!exercise) continue;
-
-    const daysAgo = (now - new Date(log.date).getTime()) / 86400000;
-    const decay = Math.max(0, 1 - daysAgo / recentDays);
 
     let sessionPoints = 0;
     if (exercise.muscleGroup === muscleGroup) {
@@ -83,7 +75,11 @@ function getMuscleGroupStatus(
     }
 
     if (sessionPoints > 0) {
-      totalHeat += sessionPoints * decay;
+      const daysAgo = (now - new Date(log.date).getTime()) / 86400000;
+      // Each hit decays linearly at heatCooldownPerDay pts/day, floored at 0
+      const contribution = Math.max(0, sessionPoints - daysAgo * heatCooldownPerDay);
+      totalHeat += contribution;
+
       const daysAgoInt = Math.floor(daysAgo);
       if (lastTrainedDaysAgo === null || daysAgoInt < lastTrainedDaysAgo) {
         lastTrainedDaysAgo = daysAgoInt;
@@ -91,7 +87,7 @@ function getMuscleGroupStatus(
     }
   }
 
-  // weight progress: look at all-time logs for primary exercises
+  // Weight progress: compare earliest vs latest top weight across all-time primary logs
   const primaryExerciseIds = new Set(
     exercises
       .filter((e) => e.muscleGroup === muscleGroup)
@@ -125,7 +121,7 @@ export function getAllMuscleGroupStatuses(
   exercises: Exercise[],
   days: Day[],
   unit: WeightUnit,
-  recentDays: number,
+  heatCooldownPerDay: number,
   heatWarningThreshold: number
 ): Record<MuscleGroup, MuscleGroupStatus> {
   const result = {} as Record<MuscleGroup, MuscleGroupStatus>;
@@ -136,7 +132,7 @@ export function getAllMuscleGroupStatuses(
       exercises,
       days,
       unit,
-      recentDays,
+      heatCooldownPerDay,
       heatWarningThreshold
     );
   }

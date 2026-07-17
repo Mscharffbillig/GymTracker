@@ -4,7 +4,8 @@ import { BUILT_IN_EXERCISES } from '../data/exerciseCatalog';
 import { generateId } from '../utils/id';
 import { darkColors, lightColors, ThemeColors } from '../theme';
 import { analytics } from '../analytics/AnalyticsService';
-import { trackProgramCreated, trackWorkoutCompleted, trackSetLogged } from '../analytics/events';
+import { trackAppOpened, trackProgramCreated, trackWorkoutCompleted, trackSetLogged } from '../analytics/events';
+import { setDiagnosticsConsent } from '../diagnostics';
 import {
   Day,
   DayExercise,
@@ -84,11 +85,14 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<Settings>({
     unit: 'lbs',
     theme: 'dark',
-    freshDays: 2,
-    recentDays: 6,
+    gender: 'male',
+    bodyMapStyle: 'heatmap',
     overloadEnabled: true,
     heatWarningThreshold: 7,
+    heatCooldownPerDay: 2,
     bodyWeight: 0,
+    analyticsEnabled: 'undecided',
+    diagnosticsEnabled: 'undecided',
   });
   const [draftWorkout, setDraftWorkout] = useState<DraftWorkout | null>(null);
   const colors = settings.theme === 'dark' ? darkColors : lightColors;
@@ -108,9 +112,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       setSettings(loadedSettings);
       setDraftWorkout(loadedDraft);
       setLoading(false);
-      // Initialize analytics with the stored consent preference.
-      // undefined means the consent modal hasn't been shown yet — treat as no consent.
-      await analytics.initialize(loadedSettings.analyticsEnabled === true);
+      setDiagnosticsConsent(loadedSettings.diagnosticsEnabled === 'allowed');
+      await analytics.initialize(loadedSettings.analyticsEnabled);
+      trackAppOpened();
     })();
   }, []);
 
@@ -327,9 +331,11 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   function updateSettings(next: Settings) {
     setSettings(next);
     storage.saveSettings(next);
-    // Sync analytics consent whenever the setting changes
     if (next.analyticsEnabled !== settings.analyticsEnabled) {
-      void analytics.setConsent(next.analyticsEnabled === true);
+      void analytics.setConsent(next.analyticsEnabled);
+    }
+    if (next.diagnosticsEnabled !== settings.diagnosticsEnabled) {
+      setDiagnosticsConsent(next.diagnosticsEnabled === 'allowed');
     }
   }
 

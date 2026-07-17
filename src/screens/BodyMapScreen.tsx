@@ -9,6 +9,7 @@ import { getAllMuscleGroupStatuses } from '../data/muscleMap';
 import {
   BodyMapMode,
   buildHighlighterData,
+  getCompletedLegend,
   getSlugToGroups,
   HEAT_COLORS,
   PROJECTED_PRIMARY_COLOR,
@@ -43,36 +44,29 @@ export function BodyMapScreen() {
         exercises,
         days,
         settings.unit,
-        settings.recentDays,
+        settings.heatCooldownPerDay,
         settings.heatWarningThreshold
       ),
-    [logs, exercises, days, settings.unit, settings.recentDays, settings.heatWarningThreshold]
+    [logs, exercises, days, settings.unit, settings.heatCooldownPerDay, settings.heatWarningThreshold]
   );
 
   const slugToGroups = useMemo(() => getSlugToGroups(), []);
 
   const highlighterData = useMemo(
-    () => buildHighlighterData(statuses, mode, settings.heatWarningThreshold),
-    [statuses, mode, settings.heatWarningThreshold]
+    () => buildHighlighterData(statuses, mode, settings.heatWarningThreshold, settings.bodyMapStyle),
+    [statuses, mode, settings.heatWarningThreshold, settings.bodyMapStyle]
   );
 
   const selectedGroups = selectedSlug ? slugToGroups[selectedSlug] ?? [] : [];
-
-  const completedLegend = [
-    { label: 'Secondary hit', color: HEAT_COLORS.faint },
-    { label: 'Building up', color: HEAT_COLORS.low },
-    { label: 'Well worked', color: HEAT_COLORS.medium },
-    { label: 'Freshly trained', color: HEAT_COLORS.high },
-    { label: 'High volume', color: HEAT_COLORS.veryHigh },
-    { label: 'Recover!', color: HEAT_COLORS.overworked },
-  ];
 
   const projectedLegend = [
     { label: 'Covered by your program', color: PROJECTED_PRIMARY_COLOR },
     { label: "Won't be hit", color: colors.surfaceAlt },
   ];
 
-  const legend = mode === 'completed' ? completedLegend : projectedLegend;
+  const legend = mode === 'completed'
+    ? getCompletedLegend(settings.bodyMapStyle)
+    : projectedLegend;
 
   function handleBodyPartPress(part: ExtendedBodyPart) {
     if (part.slug) setSelectedSlug(part.slug);
@@ -114,6 +108,7 @@ export function BodyMapScreen() {
         <Body
           data={highlighterData}
           side={view}
+          gender={settings.gender ?? 'male'}
           scale={1.7}
           border={colors.border}
           defaultFill={colors.surfaceAlt}

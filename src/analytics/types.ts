@@ -62,11 +62,12 @@ export interface QueuedEvent {
   properties: Record<string, SafeValue>;
   timestamp: string;
   retryCount: number;
+  retryAfter?: number; // Unix ms — don't retry before this time
 }
 
 export interface IAnalyticsService {
-  initialize(consent: boolean): Promise<void>;
-  setConsent(enabled: boolean): Promise<void>;
+  initialize(consent: import('../types').ConsentState): Promise<void>;
+  setConsent(state: import('../types').ConsentState): Promise<void>;
   track(event: AnalyticsEvent): Promise<void>;
   trackScreen(screenName: string): void;
   recordError(errorCode: string, context?: string): void;

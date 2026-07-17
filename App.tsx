@@ -8,13 +8,30 @@ import { AppDataProvider, useAppData } from './src/context/AppDataContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { ConsentModal } from './src/components/ConsentModal';
 import { darkColors } from './src/theme';
+import { isDiagnosticsConsented } from './src/diagnostics';
 
+// Sentry is initialized disabled. Events are gated by isDiagnosticsConsented() in
+// beforeSend/beforeBreadcrumb so nothing is transmitted before the user grants consent.
+// AppDataContext calls setDiagnosticsConsent() once settings load (and again on change).
 Sentry.init({
   dsn: 'https://707563a09a704d3cb86db22b46a7eed8@o4511701032108032.ingest.us.sentry.io/4511701522186240',
-  // Only report in production builds, not during local dev
   enabled: !__DEV__,
-  // Capture 20% of transactions for performance monitoring
-  tracesSampleRate: 0.2,
+  tracesSampleRate: 0,    // no performance tracing
+  sendDefaultPii: false,  // no automatic user identifiers
+  beforeSend(event) {
+    if (!isDiagnosticsConsented()) return null;
+    // Strip navigation context (may contain route params with opaque IDs)
+    if (event.contexts?.['react_navigation']) {
+      delete event.contexts['react_navigation'];
+    }
+    return event;
+  },
+  beforeBreadcrumb(breadcrumb) {
+    if (!isDiagnosticsConsented()) return null;
+    // Navigation breadcrumbs may contain route params; strip them entirely
+    if (breadcrumb.category === 'navigation') return null;
+    return breadcrumb;
+  },
 });
 
 function AppContent() {
@@ -45,9 +62,9 @@ function AppContent() {
         <RootNavigator />
       </NavigationContainer>
       <ConsentModal
-        visible={settings.analyticsEnabled === undefined}
-        onAllow={() => updateSettings({ ...settings, analyticsEnabled: true })}
-        onDecline={() => updateSettings({ ...settings, analyticsEnabled: false })}
+        visible={settings.analyticsEnabled === 'undecided'}
+        onAllow={() => updateSettings({ ...settings, analyticsEnabled: 'allowed' })}
+        onDecline={() => updateSettings({ ...settings, analyticsEnabled: 'declined' })}
       />
     </>
   );
@@ -65,5 +82,4 @@ function App() {
   );
 }
 
-// Sentry.wrap instruments the root component for automatic crash boundaries
 export default Sentry.wrap(App);

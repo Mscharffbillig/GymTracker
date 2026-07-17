@@ -229,7 +229,7 @@ export function StatsScreen() {
         </View>
 
         <View style={styles.grid}>
-          <StatCard value={String(stats.workouts)} label="Workouts" />
+          <StatCard value={String(stats.workouts)} label="Sessions" />
           <StatCard value={formatBig(stats.sets)} label="Sets" />
           <StatCard value={formatBig(stats.reps)} label="Reps" />
           <StatCard
@@ -313,7 +313,7 @@ export function StatsScreen() {
 
         {filtered.length === 0 && (
           <Text style={[styles.empty, { color: colors.textMuted }]}>
-            No workouts logged for this period yet.
+            No sessions logged for this period yet.
           </Text>
         )}
       </ScrollView>

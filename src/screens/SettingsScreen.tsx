@@ -1,16 +1,15 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { useAppData } from '../context/AppDataContext';
 import { fontStyles, radius, spacing, ThemeColors } from '../theme';
-import { ThemeMode, WeightUnit } from '../types';
+import { BodyMapStyle, ThemeMode, WeightUnit } from '../types';
 import { SettingsStackParamList } from '../navigation/types';
 
-const FRESH_OPTIONS = [1, 2, 3, 5];
-const RECENT_OPTIONS = [4, 6, 8, 10, 14];
 const HEAT_WARNING_OPTIONS = [5, 6, 7, 8, 10];
+const HEAT_COOLDOWN_OPTIONS = [1, 2, 3, 4];
 
 type Props = NativeStackScreenProps<SettingsStackParamList, 'Settings'>;
 
@@ -24,14 +23,6 @@ export function SettingsScreen({ navigation }: Props) {
 
   function setTheme(theme: ThemeMode) {
     updateSettings({ ...settings, theme });
-  }
-
-  function setFreshDays(freshDays: number) {
-    updateSettings({ ...settings, freshDays });
-  }
-
-  function setRecentDays(recentDays: number) {
-    updateSettings({ ...settings, recentDays });
   }
 
   function toggleOverload() {
@@ -76,63 +67,46 @@ export function SettingsScreen({ navigation }: Props) {
       </View>
 
       <Text style={[fontStyles.label, styles.sectionSpacing, { color: colors.textMuted }]}>
-        BODY WEIGHT ({settings.unit.toUpperCase()})
+        BODY MAP STYLE
       </Text>
-      <TextInput
-        style={[styles.bodyWeightInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
-        keyboardType="decimal-pad"
-        value={settings.bodyWeight === 0 ? '' : String(settings.bodyWeight)}
-        onChangeText={(v) => {
-          const n = parseFloat(v);
-          updateSettings({ ...settings, bodyWeight: isNaN(n) ? 0 : n });
-        }}
-        placeholder={`Enter your body weight in ${settings.unit}`}
-        placeholderTextColor={colors.textMuted}
-      />
-      <Text style={[fontStyles.bodyMuted, styles.helperText, { color: colors.textMuted }]}>
-        Lets you fill weight fields on bodyweight exercises (lunges, etc.) with one tap during a session.
-      </Text>
-
-      <Text style={[fontStyles.label, styles.sectionSpacing, { color: colors.textMuted }]}>
-        MUSCLE MAP — FRESH WITHIN (DAYS)
-      </Text>
-      <View style={styles.chipRow}>
-        {FRESH_OPTIONS.map((days) => (
+      <View style={styles.optionRow}>
+        {(['simple', 'heatmap'] as BodyMapStyle[]).map((style) => (
           <Pressable
-            key={days}
-            onPress={() => setFreshDays(days)}
-            style={[styles.chip, settings.freshDays === days && styles.optionActive]}
+            key={style}
+            onPress={() => updateSettings({ ...settings, bodyMapStyle: style })}
+            style={[styles.option, settings.bodyMapStyle === style && styles.optionActive]}
           >
-            <Text
-              style={[styles.optionLabel, settings.freshDays === days && styles.optionLabelActive]}
-            >
-              {days}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <Text style={[fontStyles.label, styles.sectionSpacing, { color: colors.textMuted }]}>
-        MUSCLE MAP — NEEDS WORK AFTER (DAYS)
-      </Text>
-      <View style={styles.chipRow}>
-        {RECENT_OPTIONS.map((days) => (
-          <Pressable
-            key={days}
-            onPress={() => setRecentDays(days)}
-            style={[styles.chip, settings.recentDays === days && styles.optionActive]}
-          >
-            <Text
-              style={[styles.optionLabel, settings.recentDays === days && styles.optionLabelActive]}
-            >
-              {days}
+            <Text style={[styles.optionLabel, settings.bodyMapStyle === style && styles.optionLabelActive]}>
+              {style === 'simple' ? 'Simple' : 'Heat Map'}
             </Text>
           </Pressable>
         ))}
       </View>
       <Text style={[fontStyles.bodyMuted, styles.helperText, { color: colors.textMuted }]}>
-        A muscle group shows fresh for the first window, fades to "recent" until the second
-        number, then reads as needing work.
+        Simple shows whether a muscle was worked this week. Heat Map shows accumulated volume
+        using a point-based color gradient.
+      </Text>
+
+      <Text style={[fontStyles.label, styles.sectionSpacing, { color: colors.textMuted }]}>
+        HEAT MAP — DAILY COOLDOWN (POINTS/DAY)
+      </Text>
+      <View style={styles.chipRow}>
+        {HEAT_COOLDOWN_OPTIONS.map((val) => (
+          <Pressable
+            key={val}
+            onPress={() => updateSettings({ ...settings, heatCooldownPerDay: val })}
+            style={[styles.chip, settings.heatCooldownPerDay === val && styles.optionActive]}
+          >
+            <Text
+              style={[styles.optionLabel, settings.heatCooldownPerDay === val && styles.optionLabelActive]}
+            >
+              {val}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={[fontStyles.bodyMuted, styles.helperText, { color: colors.textMuted }]}>
+        Heat points lost per 24 hours. Higher = muscles recover faster on the map. Default is 2.
       </Text>
 
       <Text style={[fontStyles.label, styles.sectionSpacing, { color: colors.textMuted }]}>
@@ -177,11 +151,11 @@ export function SettingsScreen({ navigation }: Props) {
         ))}
       </View>
       <Text style={[fontStyles.bodyMuted, styles.helperText, { color: colors.textMuted }]}>
-        Primary exercises add 3 heat, secondary add 1. Heat fades over your decay window.
-        At this threshold the muscle shows a recovery warning on the body map.
+        Primary exercises add 3 pts, secondary add 1 pt. Heat decays daily. At this threshold
+        the muscle shows a recovery warning on the body map.
       </Text>
 
-      {/* ── Analytics consent ───────────────────────────────── */}
+      {/* ── Privacy consent ─────────────────────────────────── */}
       <Text style={[fontStyles.label, styles.sectionSpacing, { color: colors.textMuted }]}>
         PRIVACY
       </Text>
@@ -198,13 +172,38 @@ export function SettingsScreen({ navigation }: Props) {
           </Text>
         </View>
         <Switch
-          value={settings.analyticsEnabled === true}
-          onValueChange={(val) => updateSettings({ ...settings, analyticsEnabled: val })}
+          value={settings.analyticsEnabled === 'allowed'}
+          onValueChange={(val) =>
+            updateSettings({ ...settings, analyticsEnabled: val ? 'allowed' : 'declined' })
+          }
           trackColor={{ false: colors.border, true: colors.primary }}
           thumbColor="#FFFFFF"
           accessibilityLabel="Anonymous usage analytics"
           accessibilityRole="switch"
-          accessibilityState={{ checked: settings.analyticsEnabled === true }}
+          accessibilityState={{ checked: settings.analyticsEnabled === 'allowed' }}
+        />
+      </View>
+
+      <View style={[styles.toggleRow, { backgroundColor: colors.surface }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[fontStyles.body, { color: colors.text }]}>
+            Crash diagnostics
+          </Text>
+          <Text style={[fontStyles.bodyMuted, styles.helperText, { color: colors.textMuted }]}>
+            Send anonymous crash reports to help fix bugs. No workout data, names, weights,
+            or personal information is ever included.
+          </Text>
+        </View>
+        <Switch
+          value={settings.diagnosticsEnabled === 'allowed'}
+          onValueChange={(val) =>
+            updateSettings({ ...settings, diagnosticsEnabled: val ? 'allowed' : 'declined' })
+          }
+          trackColor={{ false: colors.border, true: colors.primary }}
+          thumbColor="#FFFFFF"
+          accessibilityLabel="Crash diagnostics"
+          accessibilityRole="switch"
+          accessibilityState={{ checked: settings.diagnosticsEnabled === 'allowed' }}
         />
       </View>
 
@@ -291,14 +290,6 @@ function createStyles(colors: ThemeColors) {
     },
     optionLabelActive: {
       color: '#FFFFFF',
-    },
-    bodyWeightInput: {
-      marginTop: spacing.sm,
-      borderWidth: 1,
-      borderRadius: radius.md,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.md,
-      fontSize: 16,
     },
     helperText: {
       marginTop: spacing.sm,
