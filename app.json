@@ -36,7 +36,7 @@
           "url": "https://sentry.io/",
           "project": "react-native",
           "organization": "norsewood-enterprises",
-          "uploadSourceMaps": false
+          "uploadSourceMaps": true
         }
       ]
     ],
