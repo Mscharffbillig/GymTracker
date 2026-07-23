@@ -155,6 +155,7 @@ export function ExercisePickerScreen({ route, navigation }: Props) {
       <FlatList
         data={filtered}
         keyExtractor={(e) => e.id}
+        style={{ flex: 1 }}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={<EmptyState title="No exercises found" />}
         renderItem={({ item }) => (
@@ -369,6 +370,7 @@ function createStyles(colors: ThemeColors) {
     chipRow: {
       gap: spacing.sm,
       paddingVertical: spacing.md,
+      alignItems: 'flex-start',
     },
     chip: {
       flexShrink: 0,

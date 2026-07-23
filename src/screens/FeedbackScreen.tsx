@@ -169,7 +169,7 @@ export function FeedbackScreen({ navigation }: Props) {
             The feedback endpoint has not been set up yet. Check back in a future update.
           </Text>
           <Pressable
-            style={[styles.submitBtn, { backgroundColor: colors.primary }]}
+            style={[styles.submitBtn, styles.successBtn, { backgroundColor: colors.primary }]}
             onPress={() => navigation.goBack()}
           >
             <Text style={styles.submitBtnLabel}>Go Back</Text>
@@ -193,7 +193,7 @@ export function FeedbackScreen({ navigation }: Props) {
               : 'Your report helps make Only Sets better.'}
           </Text>
           <Pressable
-            style={[styles.submitBtn, { backgroundColor: colors.primary }]}
+            style={[styles.submitBtn, styles.successBtn, { backgroundColor: colors.primary }]}
             onPress={() => navigation.goBack()}
           >
             <Text style={styles.submitBtnLabel}>Done</Text>
@@ -461,5 +461,6 @@ function createStyles(colors: ThemeColors) {
     },
     successTitle: { marginTop: spacing.lg, textAlign: 'center' },
     successBody: { marginTop: spacing.md, textAlign: 'center', lineHeight: 22 },
+    successBtn: { alignSelf: 'stretch' },
   });
 }

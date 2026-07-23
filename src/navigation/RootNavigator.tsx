@@ -132,7 +132,7 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen
         name="Stats"
         component={StatsScreen}
-        options={{ title: 'Statistics', headerShown: false }}
+        options={{ title: 'Statistics' }}
       />
     </ProfileStack.Navigator>
   );

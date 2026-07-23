@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../components/ScreenContainer';
@@ -22,12 +22,23 @@ interface Session {
 export function WorkoutLogScreen({ navigation }: Props) {
   const { logs, days, getExerciseById, settings, colors, deleteLog } = useAppData();
   const styles = createStyles(colors);
+  const [search, setSearch] = useState('');
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
 
   function confirmDelete(entry: ExerciseLog, exerciseName: string) {
     Alert.alert('Delete entry?', `Remove ${exerciseName} from this routine log.`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: () => deleteLog(entry.id) },
     ]);
+  }
+
+  function toggleExpand(key: string) {
+    setExpandedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   }
 
   const sessions = useMemo<Session[]>(() => {
@@ -47,7 +58,18 @@ export function WorkoutLogScreen({ navigation }: Props) {
     );
   }, [logs, days]);
 
+  const filteredSessions = useMemo<Session[]>(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return sessions;
+    return sessions.filter(
+      (s) =>
+        s.dayName.toLowerCase().includes(q) ||
+        s.entries.some((e) => getExerciseById(e.exerciseId)?.name.toLowerCase().includes(q))
+    );
+  }, [sessions, search, getExerciseById]);
+
   function renderSession({ item }: { item: Session }) {
+    const isExpanded = expandedKeys.has(item.key);
     const dateLabel = new Date(item.date).toLocaleDateString(undefined, {
       weekday: 'short',
       month: 'short',
@@ -57,57 +79,73 @@ export function WorkoutLogScreen({ navigation }: Props) {
 
     return (
       <View style={styles.card}>
-        <Text style={[fontStyles.heading, { color: colors.text }]}>{item.dayName}</Text>
-        <Text style={[fontStyles.label, styles.dateLabel, { color: colors.textMuted }]}>
-          {dateLabel}
-        </Text>
-        {item.entries.map((entry, index) => {
-          const exercise = getExerciseById(entry.exerciseId);
-          const setsSummary =
-            exercise?.trackingType === 'time'
-              ? entry.sets
-                  .filter((s) => s.durationSeconds > 0)
-                  .map((s) => formatDuration(s.durationSeconds))
-                  .join('  ·  ')
-              : entry.sets
-                  .filter((s) => s.reps > 0 || s.weight > 0)
-                  .map((s) => `${s.weight}${settings.unit}×${s.reps}`)
-                  .join('  ·  ');
-          return (
-            <View
-              key={entry.id}
-              style={[styles.entryRow, index === 0 && styles.entryRowFirst]}
-            >
-              <Pressable
-                style={styles.entryRowMain}
-                onPress={() =>
-                  exercise && navigation.navigate('ExerciseHistory', { exerciseId: exercise.id })
-                }
-              >
-                <Text style={[fontStyles.body, { color: colors.text }]}>
-                  {exercise?.name ?? 'Exercise'}
-                </Text>
-                <Text style={[fontStyles.bodyMuted, { color: colors.textMuted }]}>
-                  {setsSummary || 'No sets recorded'}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => navigation.navigate('LogEdit', { logId: entry.id })}
-                style={styles.editBtn}
-                hitSlop={8}
-              >
-                <Ionicons name="create-outline" size={18} color={colors.primary} />
-              </Pressable>
-              <Pressable
-                onPress={() => confirmDelete(entry, exercise?.name ?? 'this exercise')}
-                style={styles.deleteBtn}
-                hitSlop={8}
-              >
-                <Ionicons name="trash-outline" size={18} color={colors.danger} />
-              </Pressable>
-            </View>
-          );
-        })}
+        <Pressable style={styles.cardHeader} onPress={() => toggleExpand(item.key)}>
+          <View style={styles.cardHeaderText}>
+            <Text style={[fontStyles.heading, { color: colors.text }]}>{item.dayName}</Text>
+            <Text style={[fontStyles.label, { color: colors.textMuted }]}>{dateLabel}</Text>
+          </View>
+          <View style={styles.cardHeaderMeta}>
+            <Text style={[fontStyles.bodyMuted, { color: colors.textMuted }]}>
+              {item.entries.length} {item.entries.length === 1 ? 'exercise' : 'exercises'}
+            </Text>
+            <Ionicons
+              name={isExpanded ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color={colors.textMuted}
+            />
+          </View>
+        </Pressable>
+
+        {isExpanded &&
+          item.entries.map((entry) => {
+            const exercise = getExerciseById(entry.exerciseId);
+            const setsSummary =
+              exercise?.trackingType === 'time'
+                ? entry.sets
+                    .filter((s) => s.durationSeconds > 0)
+                    .map((s) => formatDuration(s.durationSeconds))
+                    .join('  ·  ')
+                : entry.sets
+                    .filter((s) => s.reps > 0 || s.weight > 0)
+                    .map((s) => `${s.weight}${settings.unit}×${s.reps}`)
+                    .join('  ·  ');
+            return (
+              <View key={entry.id} style={styles.entryRow}>
+                <Pressable
+                  style={styles.entryRowMain}
+                  onPress={() =>
+                    exercise && navigation.navigate('ExerciseHistory', { exerciseId: exercise.id })
+                  }
+                >
+                  <Text style={[fontStyles.body, { color: colors.text }]}>
+                    {exercise?.name ?? 'Exercise'}
+                  </Text>
+                  <Text style={[fontStyles.bodyMuted, { color: colors.textMuted }]}>
+                    {setsSummary || 'No sets recorded'}
+                  </Text>
+                  {entry.note ? (
+                    <Text style={[styles.entryNote, { color: colors.textMuted }]}>
+                      {entry.note}
+                    </Text>
+                  ) : null}
+                </Pressable>
+                <Pressable
+                  onPress={() => navigation.navigate('LogEdit', { logId: entry.id })}
+                  style={styles.editBtn}
+                  hitSlop={8}
+                >
+                  <Ionicons name="create-outline" size={18} color={colors.primary} />
+                </Pressable>
+                <Pressable
+                  onPress={() => confirmDelete(entry, exercise?.name ?? 'this exercise')}
+                  style={styles.deleteBtn}
+                  hitSlop={8}
+                >
+                  <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                </Pressable>
+              </View>
+            );
+          })}
       </View>
     );
   }
@@ -117,16 +155,35 @@ export function WorkoutLogScreen({ navigation }: Props) {
       <View style={styles.headerRow}>
         <Text style={[fontStyles.title, { color: colors.text }]}>Routine Log</Text>
       </View>
+      <View style={styles.searchRow}>
+        <Ionicons name="search" size={18} color={colors.textMuted} />
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search sessions…"
+          placeholderTextColor={colors.textMuted}
+          style={styles.searchInput}
+        />
+        {search.length > 0 && (
+          <Pressable onPress={() => setSearch('')} hitSlop={8}>
+            <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+          </Pressable>
+        )}
+      </View>
       <FlatList
-        data={sessions}
+        data={filteredSessions}
         keyExtractor={(s) => s.key}
         renderItem={renderSession}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
-          <EmptyState
-            title="No sessions logged yet"
-            subtitle="Finish a routine from the Program tab and it will show up here."
-          />
+          search.trim() ? (
+            <EmptyState title="No sessions match your search" />
+          ) : (
+            <EmptyState
+              title="No sessions logged yet"
+              subtitle="Finish a routine from the Program tab and it will show up here."
+            />
+          )
         }
       />
     </ScreenContainer>
@@ -140,7 +197,25 @@ function createStyles(colors: ThemeColors) {
     },
     headerRow: {
       paddingHorizontal: spacing.lg,
+      marginBottom: spacing.sm,
+    },
+    searchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
+      gap: spacing.sm,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginHorizontal: spacing.lg,
       marginBottom: spacing.md,
+    },
+    searchInput: {
+      flex: 1,
+      paddingVertical: spacing.sm,
+      fontSize: 15,
+      color: colors.text,
     },
     listContent: {
       paddingHorizontal: spacing.lg,
@@ -150,25 +225,39 @@ function createStyles(colors: ThemeColors) {
     card: {
       backgroundColor: colors.surface,
       borderRadius: radius.md,
-      padding: spacing.md,
+      overflow: 'hidden',
     },
-    dateLabel: {
-      marginBottom: spacing.sm,
+    cardHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: spacing.md,
+      gap: spacing.sm,
+    },
+    cardHeaderText: {
+      flex: 1,
+      gap: spacing.xs,
+    },
+    cardHeaderMeta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
     },
     entryRow: {
       flexDirection: 'row',
       alignItems: 'center',
       paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
       borderTopWidth: 1,
       borderTopColor: colors.border,
-    },
-    entryRowFirst: {
-      borderTopWidth: 0,
-      paddingTop: 0,
     },
     entryRowMain: {
       flex: 1,
       gap: spacing.xs,
+    },
+    entryNote: {
+      fontSize: 12,
+      fontStyle: 'italic',
+      lineHeight: 17,
     },
     editBtn: {
       padding: spacing.xs,

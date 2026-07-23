@@ -70,6 +70,7 @@ export interface ExerciseLog {
   targetReps: number;
   targetDurationSeconds: number;
   sets: SetLog[];
+  note?: string;
 }
 
 export interface ExtraSessionExercise {
@@ -90,6 +91,7 @@ export interface DraftWorkout {
   extraSets: Record<string, SetLog[]>;
   completedCards?: string[];
   collapsedCards?: string[];
+  notesByExercise?: Record<string, string>;
 }
 
 export type ThemeMode = 'light' | 'dark';

@@ -149,6 +149,9 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
   const [completedCards, setCompletedCards] = useState<Set<string>>(() =>
     hasDraft && draftWorkout!.completedCards ? new Set(draftWorkout!.completedCards) : new Set()
   );
+  const [notesByExercise, setNotesByExercise] = useState<Record<string, string>>(() =>
+    hasDraft && draftWorkout!.notesByExercise ? draftWorkout!.notesByExercise : {}
+  );
   const [rawWeightInputs, setRawWeightInputs] = useState<Record<string, string>>({});
   const [routineModalVisible, setRoutineModalVisible] = useState(false);
   const [selectedForRoutine, setSelectedForRoutine] = useState<Set<string>>(new Set());
@@ -222,9 +225,10 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
       extraSets,
       completedCards: [...completedCards],
       collapsedCards: [...collapsedCards],
+      notesByExercise,
     };
     saveDraftWorkout(draft);
-  }, [setsByExercise, skippedExercises, activeExerciseIds, extraExercises, extraSets, completedCards, collapsedCards]);
+  }, [setsByExercise, skippedExercises, activeExerciseIds, extraExercises, extraSets, completedCards, collapsedCards, notesByExercise]);
 
   if (!day) {
     return (
@@ -262,6 +266,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     setExtraSets({});
     setCompletedCards(new Set());
     setCollapsedCards(new Set());
+    setNotesByExercise({});
     isDraftCleared.current = false;
   }
 
@@ -459,6 +464,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
         targetReps: de.targetReps,
         targetDurationSeconds: de.targetDurationSeconds,
         sets: setsByExercise[de.id] ?? [],
+        note: notesByExercise[de.id]?.trim() || undefined,
       }));
 
     const extraEntries = extraExercises.map((ee) => ({
@@ -466,6 +472,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
       targetReps: ee.targetReps,
       targetDurationSeconds: ee.targetDurationSeconds,
       sets: extraSets[ee.id] ?? [],
+      note: notesByExercise[ee.id]?.trim() || undefined,
     }));
 
     saveWorkoutLog(dayId, [...plannedEntries, ...extraEntries]);
@@ -593,6 +600,40 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
         </View>
       );
     });
+  }
+
+  function lastNoteForExercise(exerciseId: string): string | null {
+    const relevant = logs
+      .filter((l) => l.exerciseId === exerciseId && l.note?.trim())
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return relevant[0]?.note?.trim() ?? null;
+  }
+
+  function renderNoteSection(cardId: string, exerciseId: string) {
+    const prevNote = lastNoteForExercise(exerciseId);
+    return (
+      <View style={styles.noteSection}>
+        {prevNote ? (
+          <Text style={[styles.prevNoteText, { color: colors.textMuted }]} numberOfLines={4}>
+            <Text style={styles.prevNotePrefix}>Last time: </Text>
+            {prevNote}
+          </Text>
+        ) : null}
+        <TextInput
+          style={[styles.noteInput, {
+            color: colors.text,
+            borderColor: colors.border,
+            backgroundColor: colors.background,
+          }]}
+          value={notesByExercise[cardId] ?? ''}
+          onChangeText={(v) => setNotesByExercise((prev) => ({ ...prev, [cardId]: v }))}
+          placeholder="Add a note…"
+          placeholderTextColor={colors.textMuted}
+          multiline
+          textAlignVertical="top"
+        />
+      </View>
+    );
   }
 
   function renderSetHeader(isTime: boolean, isBodyweight: boolean) {
@@ -755,6 +796,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
                   <Ionicons name="add" size={16} color={colors.primary} />
                   <Text style={[styles.addSetLabel, { color: colors.primary }]}>Add Set</Text>
                 </Pressable>
+                {renderNoteSection(dayExercise.id, activeExId)}
               </>
             )}
 
@@ -861,6 +903,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
               <Ionicons name="add" size={16} color={colors.primary} />
               <Text style={[styles.addSetLabel, { color: colors.primary }]}>Add Set</Text>
             </Pressable>
+            {renderNoteSection(ee.id, ee.exerciseId)}
 
             <View style={styles.cardFooter}>
               {isCompleted ? (
@@ -1274,6 +1317,27 @@ function createStyles(colors: ThemeColors) {
       padding: spacing.lg,
       paddingBottom: spacing.md,
       backgroundColor: colors.background,
+    },
+    noteSection: {
+      marginTop: spacing.sm,
+      gap: spacing.xs,
+    },
+    prevNoteText: {
+      fontSize: 12,
+      fontStyle: 'italic',
+      lineHeight: 17,
+    },
+    prevNotePrefix: {
+      fontStyle: 'normal',
+      fontWeight: '600',
+    },
+    noteInput: {
+      borderWidth: 1,
+      borderRadius: radius.sm,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.sm,
+      fontSize: 13,
+      minHeight: 38,
     },
   });
 }

@@ -42,7 +42,7 @@ const COMPARISONS = [
   { lbs: 13_000,    text: 'an African elephant' },
   { lbs: 40_000,    text: 'a city bus' },
   { lbs: 60_000,    text: 'a fire truck' },
-  { lbs: 90_000,    text: 'the world\'s largest recorded blue marlin' },
+  { lbs: 1_400,      text: 'the world\'s largest recorded blue marlin' },
   { lbs: 126_000,   text: 'an M1 Abrams tank' },
   { lbs: 220_000,   text: 'the Statue of Liberty' },
   { lbs: 412_000,   text: 'an empty Boeing 747' },

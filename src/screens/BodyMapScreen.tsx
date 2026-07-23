@@ -172,11 +172,16 @@ export function BodyMapScreen() {
                           </Text>
                         ) : null}
                         {status.exerciseNamesInProgram.length > 0 ? (
-                          status.exerciseNamesInProgram.map((name) => (
-                            <Text key={name} style={[fontStyles.body, { color: colors.text }]}>
-                              • {name}
+                          <>
+                            <Text style={[fontStyles.label, { color: colors.textMuted, marginTop: spacing.sm }]}>
+                              IN YOUR PROGRAM
                             </Text>
-                          ))
+                            {status.exerciseNamesInProgram.map((name) => (
+                              <Text key={name} style={[fontStyles.body, { color: colors.text }]}>
+                                • {name}
+                              </Text>
+                            ))}
+                          </>
                         ) : (
                           <Text style={[fontStyles.bodyMuted, { color: colors.textMuted }]}>
                             No exercises for this muscle group yet.

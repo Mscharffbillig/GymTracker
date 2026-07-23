@@ -61,7 +61,7 @@ interface AppDataContextValue {
 
   saveWorkoutLog: (
     dayId: string,
-    entries: Array<{ exerciseId: string; targetReps: number; targetDurationSeconds: number; sets: SetLog[] }>
+    entries: Array<{ exerciseId: string; targetReps: number; targetDurationSeconds: number; sets: SetLog[]; note?: string }>
   ) => void;
   getLogsForExercise: (exerciseId: string) => ExerciseLog[];
   deleteLog: (logId: string) => void;
@@ -265,6 +265,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       targetReps: number;
       targetDurationSeconds: number;
       sets: SetLog[];
+      note?: string;
     }>
   ) {
     const date = new Date().toISOString();
@@ -278,6 +279,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         targetReps: entry.targetReps,
         targetDurationSeconds: entry.targetDurationSeconds,
         sets: entry.sets,
+        note: entry.note || undefined,
       }));
     persistLogs([...logs, ...newLogs]);
 
