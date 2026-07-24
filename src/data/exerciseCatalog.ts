@@ -203,9 +203,13 @@ const BODYWEIGHT_NAMES = new Set([
   'Superman',
 ]);
 
+function nameToBuiltinId(name: string): string {
+  return 'builtin-' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
+}
+
 export const BUILT_IN_EXERCISES: Exercise[] = builtIn.map(
-  ([name, category, muscleGroup, secondaryMuscleGroups, trackingType], index) => ({
-    id: `builtin-${index}`,
+  ([name, category, muscleGroup, secondaryMuscleGroups, trackingType]) => ({
+    id: nameToBuiltinId(name),
     name,
     category,
     muscleGroup,

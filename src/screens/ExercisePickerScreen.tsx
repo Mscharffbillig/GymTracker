@@ -19,7 +19,7 @@ import { Exercise, ExerciseCategory, MuscleGroup, TrackingType } from '../types'
 type Props = NativeStackScreenProps<ProgramStackParamList, 'ExercisePicker'>;
 
 export function ExercisePickerScreen({ route, navigation }: Props) {
-  const { dayId, onSessionAdd, onPickAlternative } = route.params;
+  const { dayId, onSessionAdd, onPickAlternative, requiredTrackingType } = route.params;
   const { exercises, addCustomExercise, addExerciseToDay, colors } = useAppData();
   const styles = createStyles(colors);
 
@@ -62,8 +62,9 @@ export function ExercisePickerScreen({ route, navigation }: Props) {
     return exercises
       .filter((e) => (activeCategory ? e.category === activeCategory : true))
       .filter((e) => e.name.toLowerCase().includes(search.toLowerCase()))
+      .filter((e) => !requiredTrackingType || e.trackingType === requiredTrackingType)
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [exercises, activeCategory, search]);
+  }, [exercises, activeCategory, search, requiredTrackingType]);
 
   function handlePick(exercise: Exercise) {
     if (onPickAlternative) {

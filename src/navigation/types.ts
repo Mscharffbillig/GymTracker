@@ -1,3 +1,5 @@
+import { TrackingType } from '../types';
+
 export type ProgramStackParamList = {
   Days: undefined;
   DayDetail: { dayId: string };
@@ -5,6 +7,7 @@ export type ProgramStackParamList = {
     dayId: string;
     onSessionAdd?: (exerciseId: string, sets: number, reps: number, durSecs: number) => void;
     onPickAlternative?: (exerciseId: string) => void;
+    requiredTrackingType?: TrackingType;
   };
   WorkoutSession: { dayId: string };
   ExerciseHistory: { exerciseId: string };

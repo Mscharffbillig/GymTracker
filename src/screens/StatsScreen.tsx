@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, Pressable, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../components/ScreenContainer';
+import { WorkoutCalendar } from '../components/WorkoutCalendar';
 import { useAppData } from '../context/AppDataContext';
+import { formatDuration } from '../utils/duration';
 import { fontStyles, radius, spacing, ThemeColors } from '../theme';
 import { ExerciseLog } from '../types';
 import { trackStatisticsViewed } from '../analytics/events';
@@ -154,9 +156,10 @@ function calcStreak(logs: ExerciseLog[]): { current: number; best: number } {
 }
 
 export function StatsScreen() {
-  const { logs, exercises, settings, colors } = useAppData();
+  const { logs, exercises, days, settings, colors } = useAppData();
   const styles = createStyles(colors);
   const [period, setPeriod] = useState<Period>('year');
+  const [selectedCalDate, setSelectedCalDate] = useState<string | null>(null);
 
   useEffect(() => { trackStatisticsViewed(); }, []);
 
@@ -198,6 +201,27 @@ export function StatsScreen() {
 
   const streak = useMemo(() => calcStreak(logs), [logs]);
 
+  const workoutDates = useMemo(() => {
+    const dates = new Set<string>();
+    for (const l of logs) dates.add(toDateStr(l.date));
+    return dates;
+  }, [logs]);
+
+  const selectedDateLogs = useMemo(() => {
+    if (!selectedCalDate) return [];
+    return logs.filter((l) => toDateStr(l.date) === selectedCalDate);
+  }, [logs, selectedCalDate]);
+
+  const selectedDateLabel = useMemo(() => {
+    if (!selectedCalDate) return '';
+    return new Date(selectedCalDate + 'T00:00:00').toLocaleDateString(undefined, {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  }, [selectedCalDate]);
+
   function StatCard({ value, label }: { value: string; label: string }) {
     return (
       <View style={styles.statCard}>
@@ -209,6 +233,63 @@ export function StatsScreen() {
 
   return (
     <ScreenContainer style={styles.container} edges={['bottom']}>
+      <Modal
+        visible={selectedCalDate !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedCalDate(null)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setSelectedCalDate(null)}>
+          <Pressable style={[styles.modalCard, { backgroundColor: colors.surface }]} onPress={() => {}}>
+            <Text style={[fontStyles.heading, { color: colors.text, marginBottom: spacing.sm }]}>
+              {selectedDateLabel}
+            </Text>
+            {selectedDateLogs.length === 0 ? (
+              <Text style={[fontStyles.bodyMuted, { color: colors.textMuted }]}>
+                No session logged on this day.
+              </Text>
+            ) : (
+              <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+                {selectedDateLogs.map((log) => {
+                  const exercise = exercises.find((e) => e.id === log.exerciseId);
+                  const dayName = days.find((d) => d.id === log.dayId)?.name;
+                  const isTime = exercise?.trackingType === 'time';
+                  const setsSummary = log.sets
+                    .filter((s) => s.reps > 0 || s.weight > 0 || s.durationSeconds > 0)
+                    .map((s) =>
+                      isTime
+                        ? formatDuration(s.durationSeconds)
+                        : `${s.weight}${settings.unit}×${s.reps}`
+                    )
+                    .join('  ·  ');
+                  return (
+                    <View key={log.id} style={styles.modalRow}>
+                      {dayName && (
+                        <Text style={[styles.modalDayName, { color: colors.primary }]}>
+                          {dayName}
+                        </Text>
+                      )}
+                      <Text style={[fontStyles.body, { color: colors.text }]}>
+                        {exercise?.name ?? 'Exercise'}
+                      </Text>
+                      <Text style={[fontStyles.bodyMuted, { color: colors.textMuted }]}>
+                        {setsSummary || 'No sets recorded'}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            )}
+            <Pressable
+              style={[styles.modalCloseBtn, { borderTopColor: colors.border }]}
+              onPress={() => setSelectedCalDate(null)}
+            >
+              <Text style={[styles.modalClosLabel, { color: colors.primary }]}>Close</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={[fontStyles.title, { color: colors.text, marginBottom: spacing.md }]}>
           Statistics
@@ -265,6 +346,19 @@ export function StatsScreen() {
               <Text style={[styles.statLabel, { color: colors.textMuted }]}>Best (days)</Text>
             </View>
           </View>
+        </View>
+
+        <View style={[styles.infoCard, { backgroundColor: colors.surface }]}>
+          <View style={[styles.infoRow, { marginBottom: spacing.sm }]}>
+            <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+            <Text style={[fontStyles.heading, { color: colors.text }]}>Workout Calendar</Text>
+          </View>
+          <WorkoutCalendar
+            markedDates={workoutDates}
+            selectedDate={selectedCalDate}
+            onDayPress={(d) => setSelectedCalDate((prev) => (prev === d ? null : d))}
+            colors={colors}
+          />
         </View>
 
         {stats.topExercise && (
@@ -411,6 +505,44 @@ function createStyles(colors: ThemeColors) {
       textAlign: 'center',
       marginTop: spacing.xl,
       fontStyle: 'italic',
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: spacing.lg,
+    },
+    modalCard: {
+      width: '100%',
+      borderRadius: radius.md,
+      padding: spacing.lg,
+      maxHeight: '75%',
+    },
+    modalScroll: {
+      maxHeight: 320,
+    },
+    modalRow: {
+      paddingVertical: spacing.sm,
+      gap: spacing.xs,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    modalDayName: {
+      fontSize: 11,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    modalCloseBtn: {
+      marginTop: spacing.md,
+      paddingTop: spacing.md,
+      borderTopWidth: 1,
+      alignItems: 'center',
+    },
+    modalClosLabel: {
+      fontWeight: '700',
+      fontSize: 15,
     },
   });
 }

@@ -57,7 +57,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     settings,
     saveWorkoutLog,
     getExerciseById,
-    addExerciseToDay,
+    addExercisesToDay,
     colors,
     draftWorkout,
     saveDraftWorkout,
@@ -156,11 +156,24 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
   const [routineModalVisible, setRoutineModalVisible] = useState(false);
   const [selectedForRoutine, setSelectedForRoutine] = useState<Set<string>>(new Set());
 
-  // ── Analytics: fire workout_started once, only when not resuming a draft ─
+  // ── Analytics + immediate draft claim for fresh sessions ────────────────
 
   useEffect(() => {
     if (!hasDraft && day) {
       trackWorkoutStarted(day.exercises.length);
+      // Write immediately so "in progress" indicator flips on Start Routine, not first data entry
+      saveDraftWorkout({
+        dayId,
+        startedAt,
+        setsByExercise,
+        skippedExercises: [],
+        activeExerciseIds,
+        extraExercises: [],
+        extraSets: {},
+        completedCards: [],
+        collapsedCards: [],
+        notesByExercise: {},
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -238,6 +251,33 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     );
   }
 
+  // ── Collapse / expand all ────────────────────────────────────────────────
+
+  const allCardIds = [
+    ...day.exercises.map((de) => de.id),
+    ...extraExercises.map((ee) => ee.id),
+  ];
+  const nonCompletedCardIds = allCardIds.filter((id) => !completedCards.has(id));
+  const allNonCompletedCollapsed =
+    nonCompletedCardIds.length > 0 &&
+    nonCompletedCardIds.every((id) => collapsedCards.has(id));
+
+  function toggleCollapseAll() {
+    if (allNonCompletedCollapsed) {
+      setCollapsedCards((prev) => {
+        const next = new Set(prev);
+        nonCompletedCardIds.forEach((id) => next.delete(id));
+        return next;
+      });
+    } else {
+      setCollapsedCards((prev) => {
+        const next = new Set(prev);
+        allCardIds.forEach((id) => next.add(id));
+        return next;
+      });
+    }
+  }
+
   // ── Helpers ──────────────────────────────────────────────────────────────
 
   function handleStartFresh() {
@@ -301,14 +341,30 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
 
   function toggleAlternative(dayExercise: DayExercise) {
     if (!dayExercise.alternativeExerciseId) return;
-    setActiveExerciseIds((prev) => {
-      const current = prev[dayExercise.id] ?? dayExercise.exerciseId;
-      const next =
-        current === dayExercise.exerciseId
-          ? dayExercise.alternativeExerciseId!
-          : dayExercise.exerciseId;
-      return { ...prev, [dayExercise.id]: next };
-    });
+    const current = activeExerciseIds[dayExercise.id] ?? dayExercise.exerciseId;
+    const nextExId =
+      current === dayExercise.exerciseId
+        ? dayExercise.alternativeExerciseId!
+        : dayExercise.exerciseId;
+
+    setActiveExerciseIds((prev) => ({ ...prev, [dayExercise.id]: nextExId }));
+
+    const nextEx = exercises.find((e) => e.id === nextExId);
+    const isTime = nextEx?.trackingType === 'time';
+    const setCount = setsByExercise[dayExercise.id]?.length ?? dayExercise.targetSets;
+    const prevWeight = isTime ? 0 : lastTopWeight(nextExId, logs);
+    const prevDur = isTime
+      ? lastTopDuration(nextExId, logs) || dayExercise.targetDurationSeconds
+      : 0;
+
+    setSetsByExercise((prev) => ({
+      ...prev,
+      [dayExercise.id]: Array.from({ length: setCount }, () => ({
+        reps: isTime ? 0 : dayExercise.targetReps,
+        weight: prevWeight,
+        durationSeconds: prevDur,
+      })),
+    }));
   }
 
   function updateSet(
@@ -451,14 +507,23 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     isDraftCleared.current = true;
     clearDraftWorkout();
 
-    for (const ee of extraExercises) {
-      if (addToRoutineIds.has(ee.id)) {
-        addExerciseToDay(dayId, ee.exerciseId, ee.targetSets, ee.targetReps, ee.targetDurationSeconds);
-      }
+    // Batch-add selected extra exercises in one state update (fixes stale-closure loop)
+    const toAdd = extraExercises.filter((ee) => addToRoutineIds.has(ee.id));
+    if (toAdd.length > 0) {
+      addExercisesToDay(
+        dayId,
+        toAdd.map((ee) => ({
+          exerciseId: ee.exerciseId,
+          targetSets: ee.targetSets,
+          targetReps: ee.targetReps,
+          targetDurationSeconds: ee.targetDurationSeconds,
+        }))
+      );
     }
 
+    // Only save exercises the user explicitly marked done
     const plannedEntries = day!.exercises
-      .filter((de) => !skippedExercises.has(de.id))
+      .filter((de) => !skippedExercises.has(de.id) && completedCards.has(de.id))
       .map((de) => ({
         exerciseId: activeExerciseIds[de.id] ?? de.exerciseId,
         targetReps: de.targetReps,
@@ -467,13 +532,15 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
         note: notesByExercise[de.id]?.trim() || undefined,
       }));
 
-    const extraEntries = extraExercises.map((ee) => ({
-      exerciseId: ee.exerciseId,
-      targetReps: ee.targetReps,
-      targetDurationSeconds: ee.targetDurationSeconds,
-      sets: extraSets[ee.id] ?? [],
-      note: notesByExercise[ee.id]?.trim() || undefined,
-    }));
+    const extraEntries = extraExercises
+      .filter((ee) => completedCards.has(ee.id))
+      .map((ee) => ({
+        exerciseId: ee.exerciseId,
+        targetReps: ee.targetReps,
+        targetDurationSeconds: ee.targetDurationSeconds,
+        sets: extraSets[ee.id] ?? [],
+        note: notesByExercise[ee.id]?.trim() || undefined,
+      }));
 
     saveWorkoutLog(dayId, [...plannedEntries, ...extraEntries]);
     Alert.alert('Routine logged', `Nice work — ${day!.name} is done.`, [
@@ -482,9 +549,21 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
   }
 
   function handleFinish() {
+    const allIds = [
+      ...day!.exercises.map((de) => de.id),
+      ...extraExercises.map((ee) => ee.id),
+    ];
+    const unfinishedCount = allIds.filter(
+      (id) => !skippedExercises.has(id) && !completedCards.has(id)
+    ).length;
+    const warningMsg =
+      unfinishedCount > 0
+        ? `\n\n${unfinishedCount} ${unfinishedCount === 1 ? 'exercise is' : 'exercises are'} not marked done and won't be saved.`
+        : '';
+
     Alert.alert(
       'Finish Routine?',
-      'Save your session and return to the program.',
+      `Save your session and return to the program.${warningMsg}`,
       [
         { text: 'Keep Going', style: 'cancel' },
         {
@@ -1021,6 +1100,14 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
             </View>
           )}
 
+          {allCardIds.length > 0 && (
+            <Pressable onPress={toggleCollapseAll} style={styles.collapseAllRow}>
+              <Text style={[styles.collapseAllLabel, { color: colors.primary }]}>
+                {allNonCompletedCollapsed ? 'Expand All' : 'Collapse All'}
+              </Text>
+            </Pressable>
+          )}
+
           {day.exercises.map((de) => renderPlannedExercise(de))}
 
           {extraExercises.map((ee) => renderExtraExercise(ee))}
@@ -1317,6 +1404,13 @@ function createStyles(colors: ThemeColors) {
       padding: spacing.lg,
       paddingBottom: spacing.md,
       backgroundColor: colors.background,
+    },
+    collapseAllRow: {
+      alignItems: 'flex-end',
+    },
+    collapseAllLabel: {
+      fontSize: 13,
+      fontWeight: '600',
     },
     noteSection: {
       marginTop: spacing.sm,

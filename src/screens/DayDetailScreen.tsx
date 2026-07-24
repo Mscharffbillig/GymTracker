@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../components/ScreenContainer';
@@ -193,6 +193,8 @@ export function DayDetailScreen({ route, navigation }: Props) {
     moveDayExercise,
     setAlternativeExercise,
     getExerciseById,
+    draftWorkout,
+    clearDraftWorkout,
     colors,
   } = useAppData();
   const styles = createStyles(colors);
@@ -200,6 +202,29 @@ export function DayDetailScreen({ route, navigation }: Props) {
 
   const [renameVisible, setRenameVisible] = useState(false);
   const [editingExercise, setEditingExercise] = useState<DayExercise | null>(null);
+
+  function handleStartRoutine() {
+    if (draftWorkout && draftWorkout.dayId !== dayId) {
+      const draftDayName = days.find((d) => d.id === draftWorkout.dayId)?.name ?? 'another routine';
+      Alert.alert(
+        'Session In Progress',
+        `You have an unfinished session for "${draftDayName}". Starting this will discard that progress.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Discard & Start',
+            style: 'destructive',
+            onPress: () => {
+              clearDraftWorkout();
+              navigation.navigate('WorkoutSession', { dayId });
+            },
+          },
+        ]
+      );
+    } else {
+      navigation.navigate('WorkoutSession', { dayId });
+    }
+  }
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
@@ -247,6 +272,7 @@ export function DayDetailScreen({ route, navigation }: Props) {
               navigation.navigate('ExercisePicker', {
                 dayId,
                 onPickAlternative: (exId) => setAlternativeExercise(dayId, e.id, exId),
+                requiredTrackingType: getExerciseById(e.exerciseId)?.trackingType,
               })
             }
             styles={styles}
@@ -264,7 +290,7 @@ export function DayDetailScreen({ route, navigation }: Props) {
         />
         <Button
           label="Start Routine"
-          onPress={() => navigation.navigate('WorkoutSession', { dayId })}
+          onPress={handleStartRoutine}
           disabled={day.exercises.length === 0}
           style={styles.footerBtn}
         />

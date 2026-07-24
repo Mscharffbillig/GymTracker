@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { EmptyState } from '../components/EmptyState';
+import { WorkoutCalendar } from '../components/WorkoutCalendar';
 import { useAppData } from '../context/AppDataContext';
 import { formatDuration } from '../utils/duration';
 import { fontStyles, radius, spacing, ThemeColors } from '../theme';
@@ -24,6 +25,7 @@ export function WorkoutLogScreen({ navigation }: Props) {
   const styles = createStyles(colors);
   const [search, setSearch] = useState('');
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   function confirmDelete(entry: ExerciseLog, exerciseName: string) {
     Alert.alert('Delete entry?', `Remove ${exerciseName} from this routine log.`, [
@@ -58,15 +60,27 @@ export function WorkoutLogScreen({ navigation }: Props) {
     );
   }, [logs, days]);
 
+  const sessionDates = useMemo(() => {
+    const dates = new Set<string>();
+    for (const s of sessions) dates.add(s.date.split('T')[0]);
+    return dates;
+  }, [sessions]);
+
   const filteredSessions = useMemo<Session[]>(() => {
+    let result = sessions;
+    if (selectedDate) {
+      result = result.filter((s) => s.date.startsWith(selectedDate));
+    }
     const q = search.trim().toLowerCase();
-    if (!q) return sessions;
-    return sessions.filter(
-      (s) =>
-        s.dayName.toLowerCase().includes(q) ||
-        s.entries.some((e) => getExerciseById(e.exerciseId)?.name.toLowerCase().includes(q))
-    );
-  }, [sessions, search, getExerciseById]);
+    if (q) {
+      result = result.filter(
+        (s) =>
+          s.dayName.toLowerCase().includes(q) ||
+          s.entries.some((e) => getExerciseById(e.exerciseId)?.name.toLowerCase().includes(q))
+      );
+    }
+    return result;
+  }, [sessions, search, selectedDate, getExerciseById]);
 
   function renderSession({ item }: { item: Session }) {
     const isExpanded = expandedKeys.has(item.key);
@@ -155,6 +169,28 @@ export function WorkoutLogScreen({ navigation }: Props) {
       <View style={styles.headerRow}>
         <Text style={[fontStyles.title, { color: colors.text }]}>Routine Log</Text>
       </View>
+      <View style={styles.calendarWrapper}>
+        <WorkoutCalendar
+          markedDates={sessionDates}
+          selectedDate={selectedDate}
+          onDayPress={(d) => setSelectedDate((prev) => (prev === d ? null : d))}
+          colors={colors}
+        />
+      </View>
+      {selectedDate && (
+        <Pressable
+          style={[styles.dateChip, { backgroundColor: colors.primary }]}
+          onPress={() => setSelectedDate(null)}
+        >
+          <Text style={styles.dateChipText}>
+            {new Date(selectedDate + 'T00:00:00').toLocaleDateString(undefined, {
+              month: 'long',
+              day: 'numeric',
+            })}
+          </Text>
+          <Ionicons name="close-circle" size={14} color="#fff" />
+        </Pressable>
+      )}
       <View style={styles.searchRow}>
         <Ionicons name="search" size={18} color={colors.textMuted} />
         <TextInput
@@ -198,6 +234,26 @@ function createStyles(colors: ThemeColors) {
     headerRow: {
       paddingHorizontal: spacing.lg,
       marginBottom: spacing.sm,
+    },
+    calendarWrapper: {
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.sm,
+    },
+    dateChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      alignSelf: 'flex-start',
+      borderRadius: radius.lg,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      marginHorizontal: spacing.lg,
+      marginBottom: spacing.xs,
+    },
+    dateChipText: {
+      color: '#fff',
+      fontSize: 13,
+      fontWeight: '600',
     },
     searchRow: {
       flexDirection: 'row',

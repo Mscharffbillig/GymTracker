@@ -39,6 +39,10 @@ interface AppDataContextValue {
     targetReps: number,
     targetDurationSeconds: number
   ) => void;
+  addExercisesToDay: (
+    dayId: string,
+    entries: Array<{ exerciseId: string; targetSets: number; targetReps: number; targetDurationSeconds: number }>
+  ) => void;
   updateDayExercise: (
     dayId: string,
     dayExerciseId: string,
@@ -182,6 +186,22 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     };
     persistDays(
       days.map((d) => (d.id === dayId ? { ...d, exercises: [...d.exercises, dayExercise] } : d))
+    );
+  }
+
+  function addExercisesToDay(
+    dayId: string,
+    entries: Array<{ exerciseId: string; targetSets: number; targetReps: number; targetDurationSeconds: number }>
+  ) {
+    const newExercises: DayExercise[] = entries.map((e) => ({
+      id: generateId(),
+      exerciseId: e.exerciseId,
+      targetSets: e.targetSets,
+      targetReps: e.targetReps,
+      targetDurationSeconds: e.targetDurationSeconds,
+    }));
+    persistDays(
+      days.map((d) => (d.id === dayId ? { ...d, exercises: [...d.exercises, ...newExercises] } : d))
     );
   }
 
@@ -330,7 +350,40 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     );
   }
 
+  const LBS_PER_KG = 2.20462;
+
   function updateSettings(next: Settings) {
+    if (next.unit !== settings.unit) {
+      const factor = next.unit === 'kg' ? 1 / LBS_PER_KG : LBS_PER_KG;
+      const convert = (v: number) => Math.round(v * factor * 10) / 10;
+
+      persistLogs(
+        logs.map((log) => ({
+          ...log,
+          sets: log.sets.map((s) => ({ ...s, weight: s.weight ? convert(s.weight) : 0 })),
+        }))
+      );
+
+      if (next.bodyWeight) {
+        next = { ...next, bodyWeight: convert(next.bodyWeight) };
+      }
+
+      if (draftWorkout) {
+        const migrateSetMap = (record: Record<string, SetLog[]>) =>
+          Object.fromEntries(
+            Object.entries(record).map(([k, sets]) => [
+              k,
+              sets.map((s) => ({ ...s, weight: s.weight ? convert(s.weight) : 0 })),
+            ])
+          );
+        saveDraftWorkout({
+          ...draftWorkout,
+          setsByExercise: migrateSetMap(draftWorkout.setsByExercise),
+          extraSets: migrateSetMap(draftWorkout.extraSets),
+        });
+      }
+    }
+
     setSettings(next);
     storage.saveSettings(next);
     if (next.analyticsEnabled !== settings.analyticsEnabled) {
@@ -353,6 +406,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     deleteDay,
     moveDay,
     addExerciseToDay,
+    addExercisesToDay,
     updateDayExercise,
     removeExerciseFromDay,
     moveDayExercise,

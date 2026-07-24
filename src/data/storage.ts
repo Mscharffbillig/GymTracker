@@ -1,5 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BodyMapStyle, ConsentState, Day, DraftWorkout, Exercise, ExerciseLog, Gender, Settings } from '../types';
+import { BUILT_IN_EXERCISES } from './exerciseCatalog';
+
+// Maps legacy index-based IDs (builtin-N) to stable name-based IDs
+const BUILTIN_ID_MIGRATION: Record<string, string> = Object.fromEntries(
+  BUILT_IN_EXERCISES.map((ex, i) => [`builtin-${i}`, ex.id])
+);
+
+function migrateExId(id: string): string {
+  return BUILTIN_ID_MIGRATION[id] ?? id;
+}
 
 const KEYS = {
   days: '@gymtracker/days',
@@ -44,13 +54,28 @@ function migrateConsentState(raw: unknown, fallback: ConsentState): ConsentState
 }
 
 export const storage = {
-  loadDays: () => readJson<Day[]>(KEYS.days, []),
+  loadDays: async (): Promise<Day[]> => {
+    const raw = await readJson<Day[]>(KEYS.days, []);
+    return raw.map((day) => ({
+      ...day,
+      exercises: day.exercises.map((de) => ({
+        ...de,
+        exerciseId: migrateExId(de.exerciseId),
+        ...(de.alternativeExerciseId !== undefined && {
+          alternativeExerciseId: migrateExId(de.alternativeExerciseId),
+        }),
+      })),
+    }));
+  },
   saveDays: (days: Day[]) => writeJson(KEYS.days, days),
 
   loadCustomExercises: () => readJson<Exercise[]>(KEYS.customExercises, []),
   saveCustomExercises: (exercises: Exercise[]) => writeJson(KEYS.customExercises, exercises),
 
-  loadLogs: () => readJson<ExerciseLog[]>(KEYS.logs, []),
+  loadLogs: async (): Promise<ExerciseLog[]> => {
+    const raw = await readJson<ExerciseLog[]>(KEYS.logs, []);
+    return raw.map((log) => ({ ...log, exerciseId: migrateExId(log.exerciseId) }));
+  },
   saveLogs: (logs: ExerciseLog[]) => writeJson(KEYS.logs, logs),
 
   loadSettings: async (): Promise<Settings> => {
@@ -71,7 +96,20 @@ export const storage = {
   },
   saveSettings: (settings: Settings) => writeJson(KEYS.settings, settings),
 
-  loadDraftWorkout: () => readJson<DraftWorkout | null>(KEYS.draftWorkout, null),
+  loadDraftWorkout: async (): Promise<DraftWorkout | null> => {
+    const raw = await readJson<DraftWorkout | null>(KEYS.draftWorkout, null);
+    if (!raw) return null;
+    return {
+      ...raw,
+      activeExerciseIds: Object.fromEntries(
+        Object.entries(raw.activeExerciseIds).map(([k, v]) => [k, migrateExId(v)])
+      ),
+      extraExercises: raw.extraExercises.map((ee) => ({
+        ...ee,
+        exerciseId: migrateExId(ee.exerciseId),
+      })),
+    };
+  },
   saveDraftWorkout: (draft: DraftWorkout) => writeJson(KEYS.draftWorkout, draft),
   clearDraftWorkout: () => AsyncStorage.removeItem(KEYS.draftWorkout),
 };
