@@ -7,7 +7,10 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "updates": {
-      "url": "https://u.expo.dev/cfd4c010-6b49-4634-ab30-c7433a510daf"
+      "url": "https://u.expo.dev/cfd4c010-6b49-4634-ab30-c7433a510daf",
+      "requestHeaders": {
+        "expo-channel-name": "production"
+      }
     },
     "runtimeVersion": {
       "policy": "appVersion"

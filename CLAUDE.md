@@ -48,17 +48,33 @@ Targeting Google Play open beta.
   AAB → `android/app/build/outputs/bundle/release/app-release.aab`
 - `SENTRY_AUTH_TOKEN` is set permanently in Windows User env vars. Sentry
   source maps upload automatically on every release build — no extra flags needed.
-  The old `SENTRY_DISABLE_AUTO_UPLOAD=true` env var has been removed.
 - If Android Studio has the android folder locked, use `prebuild` without
   `--clean`. Use `--clean` only when a full native reset is needed (and close
   Studio first).
 - Release is signed with the debug keystore (fine for sideloading; a proper
   release keystore is needed before Play Store submission).
-- Sentry source map upload: `uploadSourceMaps: true` in app.json. Auth token
-  in system env as `SENTRY_AUTH_TOKEN`.
 - Screenshots via `adb shell screencap` then `adb pull` (don't redirect stdout
   through PowerShell — it corrupts the PNG via UTF-16 mangling).
 - `npx tsc --noEmit` before every release pass.
+
+## OTA updates (EAS Update)
+
+- Channel: `production` — set via `app.json` `updates.requestHeaders["expo-channel-name"]`
+  so prebuild auto-generates the correct `UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY`
+  meta-data in AndroidManifest.xml. **Do not use the old `EXPO_UPDATES_CHANNEL_NAME`
+  meta-data key — expo-updates SDK 56 ignores it silently.**
+- Push an OTA update:
+  ```
+  npx eas update --branch production --environment production --message "..."
+  ```
+- EAS project ID: `cfd4c010-6b49-4634-ab30-c7433a510daf`
+- Updates check on every launch (`EXPO_UPDATES_CHECK_ON_LAUNCH=ALWAYS`,
+  `EXPO_UPDATES_LAUNCH_WAIT_MS=0`) — applied on next app restart.
+- If the server returns 204, the embedded bundle already matches the latest OTA
+  (content-addressed) — this is correct, not an error.
+- To force-apply a new OTA on a physical device: `adb shell am force-stop
+  com.anonymous.GymTracker` then reopen the app (twice if needed: once to
+  download, once to apply).
 
 ## Architecture
 
@@ -85,9 +101,9 @@ src/
   components/                  — Button, ScreenContainer, EmptyState, PromptModal, TargetModal, WeightChart, ConsentModal
   screens/
     DaysListScreen, DayDetailScreen, ExercisePickerScreen, WorkoutSessionScreen, ExerciseHistoryScreen  — Program tab
-    WorkoutLogScreen                                                                                     — Progress tab
+    WorkoutLogScreen                                                                                     — Progress tab (has collapsible calendar)
     BodyMapScreen                                                                                        — Body tab (Muscle Map)
-    ProfileScreen, StatsScreen                                                                           — Profile tab
+    ProfileScreen, StatsScreen, WeightHistoryScreen                                                      — Profile tab
     SettingsScreen, FeedbackScreen                                                                       — Settings tab
   analytics/
     AnalyticsService.ts        — batched event queue, consent-gated, posts to Cloudflare Worker
@@ -107,11 +123,14 @@ src/
     overloadEnabled: boolean
     heatWarningThreshold: number        // heat pts at which muscle shows overwork warning (default 7)
     heatCooldownPerDay: number          // pts lost per 24h (default 2)
-    bodyWeight: number                  // stored on device only, never transmitted
+    bodyWeight: number                  // legacy field; body weight is now tracked via weightLog
     analyticsEnabled: 'undecided' | 'allowed' | 'declined'
     diagnosticsEnabled: 'undecided' | 'allowed' | 'declined'
   }
   ```
+- `WeightEntry { id: string, weight: number, date: string }` — body weight log
+  entries, stored newest-first in `weightLog` AsyncStorage key. Converted
+  automatically when user changes unit (lbs ↔ kg).
 - `DraftWorkout` — auto-saved to AsyncStorage on every state change; includes
   `completedCards?: string[]` and `collapsedCards?: string[]` for card state persistence across session resume.
 - `Exercise { id, name, category, muscleGroup, secondaryMuscleGroups?, trackingType, isCustom, isBodyweight? }`
@@ -139,6 +158,16 @@ Keep Going / Add Exercise / Finish Routine. Re-arms when exercise count changes.
 **Workout → Routine rename**: all user-visible "Workout" strings are "Routine";
 internal variable names (`draftWorkout`, etc.) unchanged.
 
+**Weight tracker** (`ProfileScreen` + `WeightHistoryScreen`): log body weight
+from the Profile tab; history shown in `WeightHistoryScreen` with a `WeightChart`.
+Entries stored newest-first; weight auto-converts when unit changes.
+
+**ExercisePickerScreen keyboard layout**: no `KeyboardAvoidingView` — relies
+entirely on `android:windowSoftInputMode="adjustResize"` (set via
+`app.json` `android.softwareKeyboardLayoutMode: "resize"`). The "Can't find it?"
+row is a `FlatList` `ListHeaderComponent`, not a sibling View, to avoid flex
+column layout issues when the keyboard opens.
+
 ## Navigation (5 tabs)
 
 ```
@@ -146,7 +175,7 @@ RootTabParamList:
   ProgramTab   → ProgramStack   (DaysList → DayDetail → ExercisePicker → WorkoutSession → ExerciseHistory)
   ProgressTab  → ProgressStack  (WorkoutLog → ExerciseHistory → LogEdit)
   BodyTab      → BodyStack      (BodyMap)
-  ProfileTab   → ProfileStack   (Profile → Stats)
+  ProfileTab   → ProfileStack   (Profile → Stats | WeightHistory)
   SettingsTab  → SettingsStack  (Settings → Feedback)
 ```
 
