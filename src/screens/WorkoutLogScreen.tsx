@@ -26,6 +26,7 @@ export function WorkoutLogScreen({ navigation }: Props) {
   const [search, setSearch] = useState('');
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [calendarOpen, setCalendarOpen] = useState(true);
 
   function confirmDelete(entry: ExerciseLog, exerciseName: string) {
     Alert.alert('Delete entry?', `Remove ${exerciseName} from this routine log.`, [
@@ -169,14 +170,27 @@ export function WorkoutLogScreen({ navigation }: Props) {
       <View style={styles.headerRow}>
         <Text style={[fontStyles.title, { color: colors.text }]}>Routine Log</Text>
       </View>
-      <View style={styles.calendarWrapper}>
-        <WorkoutCalendar
-          markedDates={sessionDates}
-          selectedDate={selectedDate}
-          onDayPress={(d) => setSelectedDate((prev) => (prev === d ? null : d))}
-          colors={colors}
+      <Pressable
+        style={styles.calendarToggleRow}
+        onPress={() => setCalendarOpen((prev) => !prev)}
+      >
+        <Text style={[fontStyles.label, { color: colors.textMuted }]}>CALENDAR</Text>
+        <Ionicons
+          name={calendarOpen ? 'chevron-up' : 'chevron-down'}
+          size={16}
+          color={colors.textMuted}
         />
-      </View>
+      </Pressable>
+      {calendarOpen && (
+        <View style={styles.calendarWrapper}>
+          <WorkoutCalendar
+            markedDates={sessionDates}
+            selectedDate={selectedDate}
+            onDayPress={(d) => setSelectedDate((prev) => (prev === d ? null : d))}
+            colors={colors}
+          />
+        </View>
+      )}
       {selectedDate && (
         <Pressable
           style={[styles.dateChip, { backgroundColor: colors.primary }]}
@@ -234,6 +248,13 @@ function createStyles(colors: ThemeColors) {
     headerRow: {
       paddingHorizontal: spacing.lg,
       marginBottom: spacing.sm,
+    },
+    calendarToggleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
     },
     calendarWrapper: {
       paddingHorizontal: spacing.lg,

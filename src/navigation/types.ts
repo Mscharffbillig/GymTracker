@@ -22,6 +22,7 @@ export type ProgressStackParamList = {
 export type ProfileStackParamList = {
   Profile: undefined;
   Stats: undefined;
+  WeightHistory: undefined;
 };
 
 export type SettingsStackParamList = {

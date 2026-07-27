@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BodyMapStyle, ConsentState, Day, DraftWorkout, Exercise, ExerciseLog, Gender, Settings } from '../types';
+import { BodyMapStyle, ConsentState, Day, DraftWorkout, Exercise, ExerciseLog, Gender, Settings, WeightEntry } from '../types';
 import { BUILT_IN_EXERCISES } from './exerciseCatalog';
 
 // Maps legacy index-based IDs (builtin-N) to stable name-based IDs
@@ -17,6 +17,7 @@ const KEYS = {
   logs: '@gymtracker/logs',
   settings: '@gymtracker/settings',
   draftWorkout: '@gymtracker/draftWorkout',
+  weightLog: '@gymtracker/weightLog',
 };
 
 const DEFAULT_SETTINGS: Settings = {
@@ -95,6 +96,9 @@ export const storage = {
     };
   },
   saveSettings: (settings: Settings) => writeJson(KEYS.settings, settings),
+
+  loadWeightLog: () => readJson<WeightEntry[]>(KEYS.weightLog, []),
+  saveWeightLog: (entries: WeightEntry[]) => writeJson(KEYS.weightLog, entries),
 
   loadDraftWorkout: async (): Promise<DraftWorkout | null> => {
     const raw = await readJson<DraftWorkout | null>(KEYS.draftWorkout, null);

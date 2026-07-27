@@ -17,6 +17,7 @@ import {
   Settings,
   SetLog,
   TrackingType,
+  WeightEntry,
 } from '../types';
 
 interface AppDataContextValue {
@@ -77,6 +78,10 @@ interface AppDataContextValue {
   saveDraftWorkout: (draft: DraftWorkout) => void;
   clearDraftWorkout: () => void;
   setAlternativeExercise: (dayId: string, dayExerciseId: string, altExerciseId: string | null) => void;
+
+  weightLog: WeightEntry[];
+  addWeightEntry: (weight: number) => void;
+  deleteWeightEntry: (id: string) => void;
 }
 
 const AppDataContext = createContext<AppDataContextValue | undefined>(undefined);
@@ -99,22 +104,25 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     diagnosticsEnabled: 'undecided',
   });
   const [draftWorkout, setDraftWorkout] = useState<DraftWorkout | null>(null);
+  const [weightLog, setWeightLog] = useState<WeightEntry[]>([]);
   const colors = settings.theme === 'dark' ? darkColors : lightColors;
 
   useEffect(() => {
     (async () => {
-      const [loadedDays, loadedCustom, loadedLogs, loadedSettings, loadedDraft] = await Promise.all([
+      const [loadedDays, loadedCustom, loadedLogs, loadedSettings, loadedDraft, loadedWeightLog] = await Promise.all([
         storage.loadDays(),
         storage.loadCustomExercises(),
         storage.loadLogs(),
         storage.loadSettings(),
         storage.loadDraftWorkout(),
+        storage.loadWeightLog(),
       ]);
       setDays(loadedDays);
       setCustomExercises(loadedCustom);
       setLogs(loadedLogs);
       setSettings(loadedSettings);
       setDraftWorkout(loadedDraft);
+      setWeightLog(loadedWeightLog);
       setLoading(false);
       setDiagnosticsConsent(loadedSettings.diagnosticsEnabled === 'allowed');
       await analytics.initialize(loadedSettings.analyticsEnabled);
@@ -333,6 +341,28 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     storage.clearDraftWorkout();
   }
 
+  function addWeightEntry(weight: number) {
+    const entry: WeightEntry = { id: generateId(), date: new Date().toISOString(), weight };
+    const next = [entry, ...weightLog];
+    setWeightLog(next);
+    storage.saveWeightLog(next);
+    const nextSettings = { ...settings, bodyWeight: weight };
+    setSettings(nextSettings);
+    storage.saveSettings(nextSettings);
+  }
+
+  function deleteWeightEntry(id: string) {
+    const next = weightLog.filter((e) => e.id !== id);
+    setWeightLog(next);
+    storage.saveWeightLog(next);
+    const nextWeight = next.length > 0 ? next[0].weight : 0;
+    if (nextWeight !== settings.bodyWeight) {
+      const nextSettings = { ...settings, bodyWeight: nextWeight };
+      setSettings(nextSettings);
+      storage.saveSettings(nextSettings);
+    }
+  }
+
   function setAlternativeExercise(dayId: string, dayExerciseId: string, altExerciseId: string | null) {
     persistDays(
       days.map((d) =>
@@ -367,6 +397,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       if (next.bodyWeight) {
         next = { ...next, bodyWeight: convert(next.bodyWeight) };
       }
+
+      const convertedWeightLog = weightLog.map((e) => ({ ...e, weight: convert(e.weight) }));
+      setWeightLog(convertedWeightLog);
+      storage.saveWeightLog(convertedWeightLog);
 
       if (draftWorkout) {
         const migrateSetMap = (record: Record<string, SetLog[]>) =>
@@ -421,6 +455,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     saveDraftWorkout,
     clearDraftWorkout,
     setAlternativeExercise,
+    weightLog,
+    addWeightEntry,
+    deleteWeightEntry,
   };
 
   return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;

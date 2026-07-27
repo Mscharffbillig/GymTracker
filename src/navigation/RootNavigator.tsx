@@ -22,6 +22,7 @@ import { LogEditScreen } from '../screens/LogEditScreen';
 import { BodyMapScreen } from '../screens/BodyMapScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { WeightHistoryScreen } from '../screens/WeightHistoryScreen';
 import { FeedbackScreen } from '../screens/FeedbackScreen';
 
 const ProgramStack = createNativeStackNavigator<ProgramStackParamList>();
@@ -133,6 +134,11 @@ function ProfileStackNavigator() {
         name="Stats"
         component={StatsScreen}
         options={{ title: 'Statistics' }}
+      />
+      <ProfileStack.Screen
+        name="WeightHistory"
+        component={WeightHistoryScreen}
+        options={{ title: 'Weight History' }}
       />
     </ProfileStack.Navigator>
   );

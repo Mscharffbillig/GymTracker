@@ -119,7 +119,9 @@ export function ExercisePickerScreen({ route, navigation }: Props) {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={styles.chipScrollView}
         contentContainerStyle={styles.chipRow}
+        keyboardShouldPersistTaps="handled"
       >
         <Pressable
           onPress={() => setActiveCategory(null)}
@@ -148,16 +150,18 @@ export function ExercisePickerScreen({ route, navigation }: Props) {
         ))}
       </ScrollView>
 
-      <Pressable style={styles.addCustomRow} onPress={() => setCustomModalVisible(true)}>
-        <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
-        <Text style={styles.addCustomLabel}>Can't find it? Add your own</Text>
-      </Pressable>
-
       <FlatList
         data={filtered}
         keyExtractor={(e) => e.id}
         style={{ flex: 1 }}
         contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={
+          <Pressable style={styles.addCustomRow} onPress={() => setCustomModalVisible(true)}>
+            <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+            <Text style={styles.addCustomLabel}>Can't find it? Add your own</Text>
+          </Pressable>
+        }
         ListEmptyComponent={<EmptyState title="No exercises found" />}
         renderItem={({ item }) => (
           <Pressable style={styles.row} onPress={() => handlePick(item)}>
@@ -368,6 +372,10 @@ function createStyles(colors: ThemeColors) {
       fontSize: 15,
       color: colors.text,
     },
+    chipScrollView: {
+      flexGrow: 0,
+      flexShrink: 0,
+    },
     chipRow: {
       gap: spacing.sm,
       paddingVertical: spacing.md,
@@ -401,7 +409,7 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.xs,
-      marginBottom: spacing.md,
+      paddingVertical: spacing.sm,
     },
     addCustomLabel: {
       color: colors.primary,

@@ -73,6 +73,12 @@ export interface ExerciseLog {
   note?: string;
 }
 
+export interface WeightEntry {
+  id: string;
+  date: string;
+  weight: number;
+}
+
 export interface ExtraSessionExercise {
   id: string;
   exerciseId: string;
