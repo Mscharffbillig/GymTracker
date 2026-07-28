@@ -205,11 +205,13 @@ Foreground: `./OnlySetsAppIconv2.png` — content at 64% of canvas (inside the
 66.7% safe zone). `backgroundColor: "#0D0D0D"`. If the icon is ever replaced,
 use the PowerShell+System.Drawing padding script (see memory: feedback_android_icon).
 
-## Pre-launch checklist (pending)
+## Pre-launch checklist
 
-- [ ] Change package name from `com.anonymous.GymTracker` (breaks existing
-      installs / AsyncStorage data — do last, coordinated with testers)
-- [ ] Generate proper release keystore (currently using debug keystore)
-- [ ] AAB build confirmed for Play Store submission
-- [ ] Privacy policy hosted at public URL
-- [ ] Play Console account + store listing assets
+- [x] Package name: `com.stonewakesoftware.onlysets` (set in `app.json`)
+- [x] `versionCode: 1` set in `app.json`
+- [x] `SYSTEM_ALERT_WINDOW` permission stripped via `app.config.js` plugin
+- [x] OTA channel header in `app.json` (survives prebuild)
+- [ ] Generate proper release keystore (currently using debug keystore — must do before Play Store upload)
+- [ ] Privacy policy hosted at public URL (required by Play Store)
+- [ ] Play Console account + store listing assets (screenshots, description, etc.)
+- [ ] Coordinate data wipe with testers — package name change loses AsyncStorage data on existing installs

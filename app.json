@@ -24,7 +24,8 @@
         "backgroundColor": "#0D0D0D"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.GymTracker",
+      "package": "com.stonewakesoftware.onlysets",
+      "versionCode": 1,
       "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
