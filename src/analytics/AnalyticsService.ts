@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { getInstallationId, clearInstallationId } from './installation';
 import { AnalyticsEvent, IAnalyticsService, QueuedEvent, SafeValue } from './types';
 import { ConsentState } from '../types';
+import { requireSecureEndpoint } from '../utils/url';
 
 export const QUEUE_KEY = '@gymtracker/analyticsQueue';
 export const MAX_QUEUE_SIZE = 500;
@@ -79,8 +80,8 @@ type BatchOutcome =
   | { outcome: 'split' };
 
 async function sendBatch(events: QueuedEvent[]): Promise<BatchOutcome> {
-  const url = (process.env.EXPO_PUBLIC_ANALYTICS_URL ?? '').trim();
-  if (!url) return { outcome: 'retry' }; // fail closed; shouldn't reach here when _enabled
+  const url = requireSecureEndpoint(process.env.EXPO_PUBLIC_ANALYTICS_URL ?? '');
+  if (!url) return { outcome: 'drop' }; // fail closed: bad/non-HTTPS endpoint, discard batch
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -187,10 +188,10 @@ export const analytics: IAnalyticsService = {
     if (_initialized) return;
     _initialized = true;
 
-    const url = (process.env.EXPO_PUBLIC_ANALYTICS_URL ?? '').trim();
+    const url = requireSecureEndpoint(process.env.EXPO_PUBLIC_ANALYTICS_URL ?? '');
     if (!url) {
       if (__DEV__) {
-        console.warn('[Analytics] EXPO_PUBLIC_ANALYTICS_URL not configured — analytics disabled.');
+        console.warn('[Analytics] EXPO_PUBLIC_ANALYTICS_URL missing or not HTTPS — analytics disabled.');
       }
       return; // fail closed: no install ID, no queue, no events
     }
@@ -204,10 +205,10 @@ export const analytics: IAnalyticsService = {
   },
 
   async setConsent(state: ConsentState): Promise<void> {
-    const url = (process.env.EXPO_PUBLIC_ANALYTICS_URL ?? '').trim();
+    const url = requireSecureEndpoint(process.env.EXPO_PUBLIC_ANALYTICS_URL ?? '');
 
     if (state === 'allowed' && !_enabled) {
-      if (!url) return; // fail closed
+      if (!url) return; // fail closed: bad/non-HTTPS endpoint
       _enabled = true;
       [_installId, _queue] = await Promise.all([getInstallationId(), loadQueue()]);
       pruneExpiredEvents();

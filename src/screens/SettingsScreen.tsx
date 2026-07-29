@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../components/ScreenContainer';
@@ -229,6 +229,15 @@ export function SettingsScreen({ navigation }: Props) {
         All workout data stays on this device. There is no account, sync, or internet
         connection — uninstalling the app deletes your data.
       </Text>
+
+      <Pressable
+        onPress={() => Linking.openURL('https://stonewakesoftware.com/only-sets/privacy')}
+        accessibilityRole="link"
+        accessibilityLabel="Privacy Policy"
+        style={styles.privacyLink}
+      >
+        <Text style={[fontStyles.bodyMuted, { color: colors.primary }]}>Privacy Policy</Text>
+      </Pressable>
       </ScrollView>
     </ScreenContainer>
   );
@@ -317,6 +326,10 @@ function createStyles(colors: ThemeColors) {
     footnote: {
       marginTop: spacing.xl,
       lineHeight: 20,
+    },
+    privacyLink: {
+      marginTop: spacing.md,
+      alignSelf: 'center',
     },
   });
 }

@@ -22,12 +22,13 @@ import { HttpFeedbackService } from '../services/HttpFeedbackService';
 import { MockFeedbackService } from '../services/MockFeedbackService';
 import { getInstallationId } from '../analytics/installation';
 import { trackFeedbackOpened, trackFeedbackSubmitted, trackFeedbackFailed } from '../analytics/events';
+import { requireSecureEndpoint } from '../utils/url';
 
 const MAX_MESSAGE_LENGTH = 2000;
 const SUBMIT_COOLDOWN_MS = 30_000;
 
-const FEEDBACK_URL = (process.env.EXPO_PUBLIC_FEEDBACK_URL ?? '').trim();
-const FEEDBACK_UNAVAILABLE = !FEEDBACK_URL && !__DEV__;
+const FEEDBACK_URL = requireSecureEndpoint(process.env.EXPO_PUBLIC_FEEDBACK_URL ?? '');
+const FEEDBACK_UNAVAILABLE = FEEDBACK_URL === null && !__DEV__;
 const feedbackService: IFeedbackService = FEEDBACK_URL
   ? new HttpFeedbackService(FEEDBACK_URL)
   : new MockFeedbackService();
