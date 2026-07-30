@@ -42,10 +42,19 @@ Targeting Google Play open beta.
   APK → `android/app/build/outputs/apk/release/app-release.apk`
 - **Release AAB build** (required for Play Store):
   ```
-  npx expo prebuild --platform android
+  npx expo prebuild --platform android --clean
+  # Restore release.keystore to android/app/release.keystore (not in git — keep backup elsewhere)
+  # Patch android/app/build.gradle signingConfigs to add release block:
+  #   storeFile file('release.keystore')
+  #   storePassword System.getenv('KEYSTORE_PASSWORD') ?: ''
+  #   keyAlias System.getenv('KEY_ALIAS') ?: 'onlysets'
+  #   keyPassword System.getenv('KEY_PASSWORD') ?: ''
+  # And change release buildType to: signingConfig signingConfigs.release
+  $env:KEYSTORE_PASSWORD = '...'; $env:KEY_ALIAS = 'onlysets'; $env:KEY_PASSWORD = '...'
   cd android && ./gradlew bundleRelease --no-daemon
   ```
   AAB → `android/app/build/outputs/bundle/release/app-release.aab`
+- **Keystore:** alias `onlysets`, stored outside the repo. Back up before wiping the machine.
 - `SENTRY_AUTH_TOKEN` is set permanently in Windows User env vars. Sentry
   source maps upload automatically on every release build — no extra flags needed.
 - If Android Studio has the android folder locked, use `prebuild` without
