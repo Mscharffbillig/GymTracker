@@ -223,13 +223,25 @@ Foreground: `./OnlySetsAppIconv2.png` — content at 64% of canvas (inside the
 66.7% safe zone). `backgroundColor: "#0D0D0D"`. If the icon is ever replaced,
 use the PowerShell+System.Drawing padding script (see memory: feedback_android_icon).
 
+## Play Store status
+
+versionCode 1 AAB submitted and awaiting Google Play open beta approval.
+Next release must use `versionCode: 2` in `app.json` before building a new AAB.
+
 ## Pre-launch checklist
 
 - [x] Package name: `com.stonewakesoftware.onlysets` (set in `app.json`)
 - [x] `versionCode: 1` set in `app.json`
 - [x] `SYSTEM_ALERT_WINDOW` permission stripped via `app.config.js` plugin
 - [x] OTA channel header in `app.json` (survives prebuild)
-- [ ] Generate proper release keystore (currently using debug keystore — must do before Play Store upload)
-- [ ] Privacy policy hosted at public URL (required by Play Store)
-- [ ] Play Console account + store listing assets (screenshots, description, etc.)
-- [ ] Coordinate data wipe with testers — package name change loses AsyncStorage data on existing installs
+- [x] Release keystore generated (`onlysets` alias); backed up to `C:\Temp\onlysets-release.keystore`
+- [x] Privacy policy link in Settings screen (stonewakesoftware.com/only-sets/privacy)
+- [x] HTTPS enforcement on analytics and feedback endpoints (`requireSecureEndpoint`)
+- [x] EAS production environment variables set (`EXPO_PUBLIC_ANALYTICS_URL`, `EXPO_PUBLIC_FEEDBACK_URL`)
+- [x] `eas.json` profiles all have `environment` selectors — OTA pushes always bake in production vars
+- [x] Analytics queues events locally when endpoint unavailable; delivers on next valid session
+- [x] Version/OTA label visible at bottom of Settings screen for update verification
+- [ ] Privacy policy page live at `stonewakesoftware.com/only-sets/privacy`
+- [ ] Play Console store listing complete (description, screenshots, feature graphic)
+- [ ] Data Safety form + content rating submitted in Play Console
+- [ ] Coordinate data wipe with APK testers — package name change wipes AsyncStorage on Play Store install
