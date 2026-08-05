@@ -3,6 +3,18 @@ jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
 );
 
+// Mock Sentry so the analytics service's captureMessage() calls are interceptable
+// without hitting the real SDK. The mock is reset per-test via jest.clearAllMocks()
+// or manual .mockClear() calls where deduplication is under test.
+jest.mock('@sentry/react-native', () => ({
+  __esModule: true,
+  captureMessage: jest.fn(),
+  captureException: jest.fn(),
+  init: jest.fn(),
+  wrap: (Component) => Component,
+  withScope: jest.fn(),
+}));
+
 // Mock expo-constants
 jest.mock('expo-constants', () => ({
   __esModule: true,

@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Sentry from '@sentry/react-native';
 import {
   analytics,
   __resetForTest__,
@@ -12,53 +13,201 @@ import { INSTALL_ID_KEY } from '../analytics/installation';
 
 const TEST_URL = 'https://example.com/analytics';
 
-// Each test gets a clean slate.
 beforeEach(async () => {
   __resetForTest__();
   await AsyncStorage.clear();
   (global.fetch as jest.Mock).mockReset();
-  // Default: URL is configured so events can be queued.
+  (Sentry.captureMessage as jest.Mock).mockClear();
+  // Default: valid HTTPS URL so most tests exercise the happy path
   process.env.EXPO_PUBLIC_ANALYTICS_URL = TEST_URL;
 });
 
 afterEach(() => {
-  __resetForTest__(); // cancel any pending debounce timers
+  __resetForTest__();
   jest.useRealTimers();
   process.env.EXPO_PUBLIC_ANALYTICS_URL = TEST_URL;
+  global.__DEV__ = true;
 });
 
-// ── Fail-closed: no URL configured ────────────────────────────────────────
+// ── Endpoint unavailable — local queuing behavior ──────────────────────────
+//
+// A missing / invalid / insecure endpoint is a deployment configuration error,
+// NOT a reason to permanently discard user events. Events queue locally and
+// are delivered once a valid endpoint is available in a subsequent session.
 
-describe('fail-closed when no ANALYTICS_URL', () => {
+describe('endpoint unavailable — local queuing', () => {
   beforeEach(() => {
     delete process.env.EXPO_PUBLIC_ANALYTICS_URL;
   });
 
-  test('no events are queued when URL is absent', async () => {
+  test('events ARE queued locally when endpoint is missing (consent allowed)', async () => {
     await analytics.initialize('allowed');
     await analytics.track({ name: 'app_opened' });
 
-    expect(__getQueueForTest__()).toHaveLength(0);
-    expect(await AsyncStorage.getItem(QUEUE_KEY)).toBeNull();
+    expect(__getQueueForTest__()).toHaveLength(1);
+    const stored = await AsyncStorage.getItem(QUEUE_KEY);
+    expect(stored).not.toBeNull();
+    expect(JSON.parse(stored!)).toHaveLength(1);
   });
 
-  test('no installation ID is created when URL is absent', async () => {
+  test('install ID IS created when endpoint is missing (consent allowed)', async () => {
     await analytics.initialize('allowed');
-    expect(await AsyncStorage.getItem(INSTALL_ID_KEY)).toBeNull();
+    const id = await AsyncStorage.getItem(INSTALL_ID_KEY);
+    expect(id).not.toBeNull();
   });
 
-  test('no network request is made when URL is absent', async () => {
+  test('no network request is made when endpoint is missing', async () => {
     await analytics.initialize('allowed');
     await analytics.track({ name: 'app_opened' });
     await analytics.flush();
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  test('setConsent allowed is also a no-op when URL is absent', async () => {
+  test('setConsent to allowed queues events even when endpoint is missing', async () => {
     await analytics.initialize('declined');
     await analytics.setConsent('allowed');
     await analytics.track({ name: 'app_opened' });
+
+    expect(__getQueueForTest__()).toHaveLength(1);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test('missing endpoint does not cause a queued batch to be permanently dropped', async () => {
+    await analytics.initialize('allowed');
+    await analytics.track({ name: 'app_opened' });
+    await analytics.track({ name: 'program_created' });
+
+    // Multiple flush calls — events must remain in queue, never discarded
+    await analytics.flush();
+    await analytics.flush();
+    await analytics.flush();
+
+    expect(__getQueueForTest__()).toHaveLength(2);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test('queued events send after a valid endpoint becomes available in next session', async () => {
+    // Session 1: no endpoint — queue events locally
+    await analytics.initialize('allowed');
+    await analytics.track({ name: 'app_opened' });
+    await analytics.track({ name: 'program_created' });
+    expect(__getQueueForTest__()).toHaveLength(2);
+
+    // Session 2: new OTA/build with valid URL — events in storage should be sent
+    __resetForTest__();
+    process.env.EXPO_PUBLIC_ANALYTICS_URL = TEST_URL;
+    (global.fetch as jest.Mock).mockResolvedValueOnce({ status: 200, ok: true });
+
+    await analytics.initialize('allowed');
+    expect(__getQueueForTest__()).toHaveLength(2); // loaded from AsyncStorage
+
+    await analytics.flush();
+    expect(global.fetch).toHaveBeenCalledTimes(1);
     expect(__getQueueForTest__()).toHaveLength(0);
+  });
+});
+
+// ── Endpoint validation edge cases ─────────────────────────────────────────
+
+describe('endpoint validation', () => {
+  test('valid HTTPS endpoint enables normal analytics flow', async () => {
+    process.env.EXPO_PUBLIC_ANALYTICS_URL = TEST_URL;
+    (global.fetch as jest.Mock).mockResolvedValueOnce({ status: 200, ok: true });
+
+    await analytics.initialize('allowed');
+    await analytics.track({ name: 'app_opened' });
+    await analytics.flush();
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(__getQueueForTest__()).toHaveLength(0);
+  });
+
+  test('HTTP (non-HTTPS) endpoint queues events locally, no network call', async () => {
+    process.env.EXPO_PUBLIC_ANALYTICS_URL = 'http://example.com/analytics';
+
+    await analytics.initialize('allowed');
+    await analytics.track({ name: 'app_opened' });
+    await analytics.flush();
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(__getQueueForTest__()).toHaveLength(1);
+  });
+
+  test('malformed URL queues events locally, no network call', async () => {
+    process.env.EXPO_PUBLIC_ANALYTICS_URL = 'not-a-url';
+
+    await analytics.initialize('allowed');
+    await analytics.track({ name: 'app_opened' });
+    await analytics.flush();
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(__getQueueForTest__()).toHaveLength(1);
+  });
+});
+
+// ── Endpoint diagnostic ────────────────────────────────────────────────────
+
+describe('endpoint diagnostic', () => {
+  beforeEach(() => {
+    jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    (console.warn as jest.Mock).mockRestore();
+  });
+
+  test('warns in dev when endpoint is missing', async () => {
+    delete process.env.EXPO_PUBLIC_ANALYTICS_URL;
+    await analytics.initialize('allowed');
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('missing'));
+  });
+
+  test('warns in dev when endpoint is HTTP not HTTPS', async () => {
+    process.env.EXPO_PUBLIC_ANALYTICS_URL = 'http://example.com/analytics';
+    await analytics.initialize('allowed');
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('insecure'));
+  });
+
+  test('warns in dev when endpoint is a malformed URL', async () => {
+    process.env.EXPO_PUBLIC_ANALYTICS_URL = 'not-a-url';
+    await analytics.initialize('allowed');
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('invalid'));
+  });
+
+  test('Sentry diagnostic is sent exactly once even when triggered multiple times', async () => {
+    // Use prod mode so Sentry.captureMessage is actually called
+    global.__DEV__ = false;
+    delete process.env.EXPO_PUBLIC_ANALYTICS_URL;
+
+    await analytics.initialize('declined');
+    // First trigger: consent changes to allowed with endpoint still missing
+    await analytics.setConsent('allowed');
+    expect(Sentry.captureMessage).toHaveBeenCalledTimes(1);
+    expect(Sentry.captureMessage).toHaveBeenCalledWith(
+      'analytics_endpoint_unavailable',
+      expect.objectContaining({ tags: { reason: 'missing' } })
+    );
+
+    // Subsequent triggers must not re-fire Sentry
+    await analytics.setConsent('declined');
+    await analytics.setConsent('allowed');
+    expect(Sentry.captureMessage).toHaveBeenCalledTimes(1);
+  });
+
+  test('no warning or Sentry call when endpoint is valid', async () => {
+    global.__DEV__ = false;
+    process.env.EXPO_PUBLIC_ANALYTICS_URL = TEST_URL;
+
+    await analytics.initialize('allowed');
+    expect(Sentry.captureMessage).not.toHaveBeenCalled();
+  });
+
+  test('diagnostic is not emitted when consent is declined (analytics not in use)', async () => {
+    global.__DEV__ = false;
+    delete process.env.EXPO_PUBLIC_ANALYTICS_URL;
+
+    await analytics.initialize('declined');
+    expect(Sentry.captureMessage).not.toHaveBeenCalled();
   });
 });
 
@@ -118,6 +267,19 @@ test('re-enabling consent after revocation creates a new installation ID', async
   const id = await AsyncStorage.getItem(INSTALL_ID_KEY);
   expect(typeof id).toBe('string');
   expect(id).not.toBeNull();
+});
+
+test('analytics remains completely disabled when consent is declined', async () => {
+  await analytics.initialize('declined');
+  await analytics.track({ name: 'app_opened' });
+  await analytics.flush();
+
+  expect(global.fetch).not.toHaveBeenCalled();
+  expect(__getQueueForTest__()).toHaveLength(0);
+  const stored = await AsyncStorage.getItem(QUEUE_KEY);
+  expect(stored).toBeNull();
+  const id = await AsyncStorage.getItem(INSTALL_ID_KEY);
+  expect(id).toBeNull();
 });
 
 // ── Prohibited properties ──────────────────────────────────────────────────
@@ -273,15 +435,13 @@ test('429 with Retry-After (seconds): subsequent flush is suppressed until windo
 
   await analytics.initialize('allowed');
   await analytics.track({ name: 'app_opened' });
-  await analytics.flush(); // 429 → sets retryAfter to ~60s from now
+  await analytics.flush();
 
   expect(__getQueueForTest__()[0].retryCount).toBe(1);
 
-  // Immediate second flush is suppressed
   await analytics.flush();
   expect(global.fetch).toHaveBeenCalledTimes(1);
 
-  // After the window expires, flush proceeds
   jest.advanceTimersByTime(retryAfterSecs * 1000 + 1);
   (global.fetch as jest.Mock).mockResolvedValueOnce({ status: 200, ok: true });
   await analytics.flush();
@@ -302,10 +462,8 @@ test('429 with Retry-After as HTTP date: parses correctly', async () => {
   await analytics.track({ name: 'app_opened' });
   await analytics.flush();
 
-  // __getRetryAfterForTest__() should be in the future
   expect(__getRetryAfterForTest__()).toBeGreaterThan(Date.now());
 
-  // Immediate flush is suppressed
   await analytics.flush();
   expect(global.fetch).toHaveBeenCalledTimes(1);
 });
@@ -322,21 +480,21 @@ test('413 on single-event batch: drops the event', async () => {
 
 test('413 on multi-event batch: reduces batch size and keeps events for next flush', async () => {
   (global.fetch as jest.Mock)
-    .mockResolvedValueOnce({ status: 413, ok: false }) // first flush: 2-event batch → split
-    .mockResolvedValueOnce({ status: 200, ok: true }) // second flush: 1-event batch → success
-    .mockResolvedValueOnce({ status: 200, ok: true }); // third flush: 1-event batch → success
+    .mockResolvedValueOnce({ status: 413, ok: false })
+    .mockResolvedValueOnce({ status: 200, ok: true })
+    .mockResolvedValueOnce({ status: 200, ok: true });
 
   await analytics.initialize('allowed');
   await analytics.track({ name: 'app_opened' });
   await analytics.track({ name: 'program_created' });
 
-  await analytics.flush(); // 413 → reduces batch size to 1, events stay
+  await analytics.flush();
   expect(__getQueueForTest__()).toHaveLength(2);
 
-  await analytics.flush(); // sends 1 event → success
+  await analytics.flush();
   expect(__getQueueForTest__()).toHaveLength(1);
 
-  await analytics.flush(); // sends remaining event → success
+  await analytics.flush();
   expect(__getQueueForTest__()).toHaveLength(0);
 });
 
@@ -373,14 +531,11 @@ test('events older than MAX_EVENT_AGE_MS are pruned during flush', async () => {
   await analytics.initialize('allowed');
   await analytics.track({ name: 'app_opened' });
 
-  // Advance time past the max age
   jest.setSystemTime(now + MAX_EVENT_AGE_MS + 1_000);
 
-  // Mock a successful response, but we expect it NOT to be called
   (global.fetch as jest.Mock).mockResolvedValueOnce({ status: 200, ok: true });
   await analytics.flush();
 
-  // Expired event pruned; nothing sent
   expect(__getQueueForTest__()).toHaveLength(0);
   expect(global.fetch).not.toHaveBeenCalled();
 });

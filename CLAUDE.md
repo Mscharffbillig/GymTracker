@@ -72,10 +72,13 @@ Targeting Google Play open beta.
   so prebuild auto-generates the correct `UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY`
   meta-data in AndroidManifest.xml. **Do not use the old `EXPO_UPDATES_CHANNEL_NAME`
   meta-data key — expo-updates SDK 56 ignores it silently.**
-- Push an OTA update:
+- **Push an OTA update — always include `--environment production`:**
   ```
-  npx eas update --branch production --environment production --message "..."
+  npx eas update --channel production --environment production --message "..."
   ```
+  **WARNING: omitting `--environment production` bakes empty strings for
+  `EXPO_PUBLIC_ANALYTICS_URL` and `EXPO_PUBLIC_FEEDBACK_URL` into the bundle,
+  silently disabling analytics on every device that picks up the update.**
 - EAS project ID: `cfd4c010-6b49-4634-ab30-c7433a510daf`
 - Updates check on every launch (`EXPO_UPDATES_CHECK_ON_LAUNCH=ALWAYS`,
   `EXPO_UPDATES_LAUNCH_WAIT_MS=0`) — applied on next app restart.
@@ -84,6 +87,12 @@ Targeting Google Play open beta.
 - To force-apply a new OTA on a physical device: `adb shell am force-stop
   com.anonymous.GymTracker` then reopen the app (twice if needed: once to
   download, once to apply).
+- **Verify production env vars before pushing:**
+  ```
+  eas env:list --environment production
+  ```
+  Both `EXPO_PUBLIC_ANALYTICS_URL` and `EXPO_PUBLIC_FEEDBACK_URL` must be present
+  and must be complete HTTPS URLs pointing to the Cloudflare Worker routes.
 
 ## Architecture
 

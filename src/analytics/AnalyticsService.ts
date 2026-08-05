@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 import { getInstallationId, clearInstallationId } from './installation';
 import { AnalyticsEvent, IAnalyticsService, QueuedEvent, SafeValue } from './types';
 import { ConsentState } from '../types';
-import { requireSecureEndpoint } from '../utils/url';
+import { resolveAnalyticsEndpoint } from '../utils/url';
 
 export const QUEUE_KEY = '@gymtracker/analyticsQueue';
 export const MAX_QUEUE_SIZE = 500;
@@ -14,13 +14,15 @@ const FLUSH_DEBOUNCE_MS = 5_000;
 const REQUEST_TIMEOUT_MS = 10_000;
 
 // Singleton state
-let _enabled = false;
+let _enabled = false;             // consent is 'allowed' — controls local event collection
+let _endpointUrl: string | null = null; // resolved once per session; null = unavailable
+let _diagnosticSent = false;      // Sentry deduplication flag
 let _installId: string | null = null;
 let _queue: QueuedEvent[] = [];
 let _flushTimer: ReturnType<typeof setTimeout> | null = null;
 let _isFlushing = false;
 let _initialized = false;
-let _retryAfterMs = 0;     // endpoint-level throttle: don't flush before this time
+let _retryAfterMs = 0;
 let _currentBatchSize = BATCH_SIZE;
 
 function extractProperties(event: AnalyticsEvent): Record<string, SafeValue> {
@@ -73,6 +75,33 @@ function parseRetryAfter(header: string | null | undefined): number | undefined 
   return undefined;
 }
 
+/**
+ * Emits a one-time diagnostic when the analytics endpoint is misconfigured.
+ * In dev: logs to console. In production: sends a single Sentry event.
+ * Never includes the raw URL or any personal data.
+ */
+function _emitEndpointDiagnostic(reason: 'missing' | 'invalid' | 'insecure'): void {
+  if (__DEV__) {
+    console.warn(
+      `[Analytics] Endpoint configuration error (${reason}) — events will be queued locally but not transmitted until a valid endpoint is deployed.`
+    );
+  }
+  if (_diagnosticSent) return;
+  _diagnosticSent = true;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Sentry = require('@sentry/react-native') as {
+      captureMessage?: (msg: string, ctx?: object) => void;
+    };
+    Sentry.captureMessage?.('analytics_endpoint_unavailable', {
+      level: 'warning',
+      tags: { reason },
+    });
+  } catch {
+    // Sentry not available — silently skip
+  }
+}
+
 type BatchOutcome =
   | { outcome: 'success' }
   | { outcome: 'drop' }
@@ -80,8 +109,8 @@ type BatchOutcome =
   | { outcome: 'split' };
 
 async function sendBatch(events: QueuedEvent[]): Promise<BatchOutcome> {
-  const url = requireSecureEndpoint(process.env.EXPO_PUBLIC_ANALYTICS_URL ?? '');
-  if (!url) return { outcome: 'drop' }; // fail closed: bad/non-HTTPS endpoint, discard batch
+  // _endpointUrl is guaranteed non-null — flushQueue() guards before calling sendBatch()
+  const url = _endpointUrl!;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -101,34 +130,35 @@ async function sendBatch(events: QueuedEvent[]): Promise<BatchOutcome> {
 
     const { status } = res;
 
-    // 2xx — success
     if (status >= 200 && status < 300) return { outcome: 'success' };
 
-    // Permanent client errors — discard without retry
+    // Permanent payload/client errors from a live endpoint — discard
     if (status === 400 || status === 404 || status === 422) return { outcome: 'drop' };
 
-    // Payload too large — attempt with a smaller batch
     if (status === 413) return { outcome: 'split' };
 
-    // Transient client errors with optional backoff header
     if (status === 408 || status === 425 || status === 429) {
       const retryAfterMs = parseRetryAfter(
-        (res as Response & { headers?: { get?: (k: string) => string | null } }).headers?.get?.('Retry-After')
+        (res as Response & { headers?: { get?: (k: string) => string | null } }).headers?.get?.(
+          'Retry-After'
+        )
       );
       return { outcome: 'retry', retryAfterMs };
     }
 
-    // 5xx and anything else — retry
     return { outcome: 'retry' };
   } catch {
     clearTimeout(timeout);
-    return { outcome: 'retry' }; // network failure / AbortError (timeout)
+    return { outcome: 'retry' };
   }
 }
 
 async function flushQueue(): Promise<void> {
   if (_isFlushing || !_enabled || _queue.length === 0) return;
-  if (Date.now() < _retryAfterMs) return; // endpoint throttled
+  // Endpoint not yet configured: hold events locally for the next session
+  // that has a valid deployment. Do not drop or retry — just wait.
+  if (!_endpointUrl) return;
+  if (Date.now() < _retryAfterMs) return;
 
   _isFlushing = true;
   try {
@@ -145,11 +175,10 @@ async function flushQueue(): Promise<void> {
     switch (result.outcome) {
       case 'success':
         _queue = _queue.filter((e) => !batchIds.has(e.id));
-        _currentBatchSize = BATCH_SIZE; // restore after success
+        _currentBatchSize = BATCH_SIZE;
         break;
 
       case 'drop':
-        // Permanent failure (400/404/422): discard without incrementing retry count
         _queue = _queue.filter((e) => !batchIds.has(e.id));
         break;
 
@@ -166,10 +195,8 @@ async function flushQueue(): Promise<void> {
       case 'split': {
         const half = Math.max(1, Math.floor(batch.length / 2));
         if (half < batch.length) {
-          // Reduce batch size; keep events for next flush attempt
           _currentBatchSize = half;
         } else {
-          // Already at minimum (1 event) and still too large — drop the event
           _queue = _queue.filter((e) => !batchIds.has(e.id));
         }
         break;
@@ -183,36 +210,50 @@ async function flushQueue(): Promise<void> {
   }
 }
 
+function _resolveEndpoint(): void {
+  const result = resolveAnalyticsEndpoint(process.env.EXPO_PUBLIC_ANALYTICS_URL);
+  if (result.configured) {
+    _endpointUrl = result.url;
+  } else {
+    _emitEndpointDiagnostic(result.reason);
+  }
+}
+
 export const analytics: IAnalyticsService = {
   async initialize(consent: ConsentState): Promise<void> {
     if (_initialized) return;
     _initialized = true;
 
-    const url = requireSecureEndpoint(process.env.EXPO_PUBLIC_ANALYTICS_URL ?? '');
-    if (!url) {
-      if (__DEV__) {
-        console.warn('[Analytics] EXPO_PUBLIC_ANALYTICS_URL missing or not HTTPS — analytics disabled.');
-      }
-      return; // fail closed: no install ID, no queue, no events
+    const result = resolveAnalyticsEndpoint(process.env.EXPO_PUBLIC_ANALYTICS_URL);
+    if (result.configured) {
+      _endpointUrl = result.url;
     }
 
     if (consent === 'allowed') {
+      // Emit diagnostic when consent is active but endpoint is misconfigured.
+      // Events are still collected locally and will send once a valid endpoint
+      // is deployed via OTA or a new build.
+      if (!result.configured) {
+        _emitEndpointDiagnostic(result.reason);
+      }
       _enabled = true;
       [_installId, _queue] = await Promise.all([getInstallationId(), loadQueue()]);
       pruneExpiredEvents();
-      if (_queue.length > 0) scheduleFlush();
+      if (_queue.length > 0 && _endpointUrl) scheduleFlush();
     }
   },
 
   async setConsent(state: ConsentState): Promise<void> {
-    const url = requireSecureEndpoint(process.env.EXPO_PUBLIC_ANALYTICS_URL ?? '');
-
     if (state === 'allowed' && !_enabled) {
-      if (!url) return; // fail closed: bad/non-HTTPS endpoint
+      // Re-resolve the endpoint in case initialize() was called with a non-allowed
+      // consent state and _endpointUrl was never set.
+      if (!_endpointUrl) {
+        _resolveEndpoint();
+      }
       _enabled = true;
       [_installId, _queue] = await Promise.all([getInstallationId(), loadQueue()]);
       pruneExpiredEvents();
-      if (_queue.length > 0) scheduleFlush();
+      if (_queue.length > 0 && _endpointUrl) scheduleFlush();
     } else if (state !== 'allowed' && _enabled) {
       _enabled = false;
       cancelFlush();
@@ -225,7 +266,7 @@ export const analytics: IAnalyticsService = {
 
   async track(event: AnalyticsEvent): Promise<void> {
     if (!_enabled) return;
-    if (_queue.length >= MAX_QUEUE_SIZE) return; // cap: drop new events when full
+    if (_queue.length >= MAX_QUEUE_SIZE) return;
     const queued: QueuedEvent = {
       id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
       name: event.name,
@@ -261,6 +302,8 @@ export const analytics: IAnalyticsService = {
 export function __resetForTest__(): void {
   cancelFlush();
   _enabled = false;
+  _endpointUrl = null;
+  _diagnosticSent = false;
   _installId = null;
   _queue = [];
   _isFlushing = false;

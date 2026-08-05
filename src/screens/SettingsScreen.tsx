@@ -2,6 +2,8 @@ import React from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import * as Updates from 'expo-updates';
+import Constants from 'expo-constants';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { useAppData } from '../context/AppDataContext';
 import { fontStyles, radius, spacing, ThemeColors } from '../theme';
@@ -16,6 +18,10 @@ type Props = NativeStackScreenProps<SettingsStackParamList, 'Settings'>;
 export function SettingsScreen({ navigation }: Props) {
   const { settings, updateSettings, colors } = useAppData();
   const styles = createStyles(colors);
+
+  const appVersion = Constants.expoConfig?.version ?? '1.0.0';
+  const updateId = Updates.updateId ? Updates.updateId.split('-')[0] : null;
+  const versionLabel = updateId ? `v${appVersion} · OTA ${updateId}` : `v${appVersion} · build`;
 
   function setUnit(unit: WeightUnit) {
     updateSettings({ ...settings, unit });
@@ -238,6 +244,10 @@ export function SettingsScreen({ navigation }: Props) {
       >
         <Text style={[fontStyles.bodyMuted, { color: colors.primary }]}>Privacy Policy</Text>
       </Pressable>
+
+      <Text style={[fontStyles.bodyMuted, styles.versionLabel, { color: colors.textMuted }]}>
+        {versionLabel}
+      </Text>
       </ScrollView>
     </ScreenContainer>
   );
@@ -329,6 +339,10 @@ function createStyles(colors: ThemeColors) {
     },
     privacyLink: {
       marginTop: spacing.md,
+      alignSelf: 'center',
+    },
+    versionLabel: {
+      marginTop: spacing.sm,
       alignSelf: 'center',
     },
   });
